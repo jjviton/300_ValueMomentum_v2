@@ -25,58 +25,6 @@ Author: J3Viton
 """
 
 
-import configKEY
-from openai import OpenAI
- 
-#print (configKEY.J3_OIA_KEY)
-
-ticker = "AMZN"
- 
-client = OpenAI(api_key=configKEY.J3_OIA_KEY)
-
-response = client.chat.completions.create(
-    model="gpt-4o-mini",
-    messages = [
-    {
-        "role": "system",
-        "content": (
-            "Eres un analista financiero experto en mercados bursátiles. "
-            "Respondes con detalle y claridad sobre los datos fundamentales de las empresas "
-            "(ingresos, beneficios, márgenes, deuda, PER, flujo de caja, etc.), "
-            "y además contextualizas con análisis del sector cuando sea relevante. "
-            "tu fuente de informacion no pueden ser los datos publicados por la propia empresa, analiza fuentes independientes"
-            "Tu estilo es profesional, riguroso y claro, como si escribieras un informe para un inversor institucional."
-            "El informe es de 10 lineas maximo"
-            "Indicmane la fuente de estos datos con los que has trabajado"
-            
-        )
-    },
-    {
-        "role": "user",
-        "content": f"Dame un análisis fundamental de {ticker}."
-    }
-]
-
-)
-
-print(response.choices[0].message.content)
-
-del client
-
-
-
-import yfinance as yf
-
-def obtener_per(_ticker):
-    accion = yf.Ticker(_ticker)
-    info = accion.info
-    return info.get("trailingPE", "PER no disponible")
-
-print(f"PER de {ticker}", obtener_per(ticker))
-
-
-
-
 
 
 
@@ -121,9 +69,9 @@ logging.basicConfig(filename='../log/registro.log', level=logging.INFO ,force=Tr
 logging.warning('esto es una kkk')
 
 #### Variables globales  (refereniarlas con 'global' desde el codigo
-versionVersion = 1.1
+versionVersion = 0.1
 globalVar  = True
-pdf_flag =True
+pdf_flag = True
 
 #################################################### Clase Estrategia 
 
@@ -141,7 +89,7 @@ class valueMomentumClass:
     n_past = 14  # Number of past days we want to use to predict the future.  FILAS
     flag01 =0
    
-    def __init__(self, previson_a_x_days=4, Y_supervised_ = 'hull', para1=False, para2=1):
+    def __init__(self, ticker_= "AAPL", Y_supervised_ = 'hull', para1=False, para2=1):
         
         #Variable de INSTANCIA
         self.para_02 = para2   #variable de la isntancia
@@ -149,27 +97,11 @@ class valueMomentumClass:
         globalVar = True
         #intance.flag01 =True
         
+        
+        self.ticker = ticker_ 
+        
         return
-    
-    """
-    Getter y setter para el acceso a atributo/propiedades
-    """    
-    def __getattribute__(self, attr):
-        if attr == 'loss':
-            return self._loss
-        elif attr == 'xxx':
-            return self._edad
-        else:
-            return object.__getattribute__(self, attr)
 
-    def __setattr__(self, attr, valor):
-        if attr == 'loss':
-            self._loss = valor
-        elif attr == 'xxx':
-            self._edad = valor
-        else:
-            object.__setattr__(self, attr, valor)    
-    
         
     def analisis(self, instrumento, startDate, endDate, DF):
         """
@@ -188,6 +120,71 @@ class valueMomentumClass:
         pass
    
         return
+    
+    
+        
+    def obtener_per(self, _ticker):
+        
+        info = yf.Ticker(_ticker).get_info()                
+      
+        return info.get("trailingPE", "PER no disponible")
+    
+
+    def obtener_composite_value_tickers(self, tickers):
+        """
+        Calcula el Composite Value (promedio normalizado de ratios de valoración) para una lista de tickers.
+        Devuelve un DataFrame ordenado (menor valor = más barata).
+        """
+        data = []
+    
+        for t in tickers:
+            try:
+                info = yf.Ticker(t).get_info()
+                pe = info.get("trailingPE", np.nan)
+                pb = info.get("priceToBook", np.nan)
+                ev_ebitda = info.get("enterpriseToEbitda", np.nan)
+                ps = info.get("priceToSalesTrailing12Months", np.nan)
+    
+                data.append({
+                    "Ticker": t,
+                    "P/E": pe,
+                    "P/B": pb,
+                    "EV/EBITDA": ev_ebitda,
+                    "P/S": ps
+                })
+    
+            except Exception as e:
+                print(f"Error con {t}: {e}")
+    
+        df = pd.DataFrame(data)
+    
+        # Limpiar datos absurdos o negativos
+        for col in ["P/E", "P/B", "EV/EBITDA", "P/S"]:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+            df.loc[(df[col] <= 0) | (df[col] > 200), col] = np.nan  # filtrar outliers
+    
+        # Normalización por columna (z-score inverso: menor ratio = más value)
+        z_scores = df[["P/E", "P/B", "EV/EBITDA", "P/S"]].apply(
+            lambda x: -(x - np.nanmean(x)) / np.nanstd(x)
+        )
+    
+        # Calcular promedio de z-scores disponibles (Composite Value)
+        df["Composite Value"] = z_scores.mean(axis=1)
+    
+        # Ranking (1 = más barata, N = más cara)
+        df["Ranking"] = df["Composite Value"].rank(ascending=False)
+    
+        # Ordenar por valor compuesto
+        df.sort_values("Composite Value", ascending=False, inplace=True)
+        df.reset_index(drop=True, inplace=True)
+    
+        return df[["Ticker", "P/E", "P/B", "EV/EBITDA", "P/S", "Composite Value", "Ranking"]]
+
+    
+    
+    
+    
+
     
  
     
@@ -215,11 +212,24 @@ if __name__ == '__main__':
 
     print ('version(J): ',versionVersion) 
 
-    #print(sys.argv[1])   #se configura en 'run' 'configuration per file'
+    """
+    print(sys.argv[1])   #se configura en 'run' 'configuration per file'
 
     if (True or sys.argv[1]== 'prod' ):
         print('Produccion')
         sys.exit()
+    """
+    
+    objEstra =valueMomentumClass("AMZN")
+    
+    objEstra.obtener_per(objEstra.ticker)
+    
+    print(f"PER de {objEstra.ticker}", objEstra.obtener_per(objEstra.ticker))
+
+
+    tickers = ["AAPL", "MSFT", "JPM", "XOM", "AMZN", "META", "NVDA", "KO", "PFE", "INTC"]
+    resultado = objEstra.obtener_composite_value_tickers(tickers)
+    
 
     
     print('This is it................ 6')

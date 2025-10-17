@@ -135,7 +135,7 @@ class valueMomentumClass:
         return info.get("trailingPE", "PER no disponible")
     
 
-    def obtener_composite_value_tickers(self, tickers):
+    def obtener_composite_value_tickers(self, tickers, sector ='fin'):
        """
        Calcula el Composite Value (promedio normalizado de ratios de valoración) 
        para una lista de tickers.
@@ -166,31 +166,37 @@ class valueMomentumClass:
        df = pd.DataFrame(data)
 
        # 2️⃣ Limpieza de datos
-       for col in ["P/E", "P/B", "EV/EBITDA", "P/S"]:
+       for col in ["P/E", "P/B"]:  #, "EV/EBITDA", "P/S"]:
            df[col] = pd.to_numeric(df[col], errors="coerce")
 
        # 3️⃣ Filtros absolutos (descarta extremos)
        df = df.loc[
-           (df["P/E"] > 2) & (df["P/E"] < 25) &
-           (df["P/B"] > 0.2) & (df["P/B"] < 3) &
-           (df["EV/EBITDA"] > -99999) & (df["EV/EBITDA"] < 999999930) &
-           (df["P/S"] > -9999990) & (df["P/S"] < 99999910)
+           (df["P/E"] > 8) & (df["P/E"] < 20) &
+           (df["P/B"] > 0.8) & (df["P/B"] < 2) 
        ].copy()
+       
+       """&
+       (df["EV/EBITDA"] > -99999) & (df["EV/EBITDA"] < 999999930) &
+       (df["P/S"] > -9999990) & (df["P/S"] < 99999910)"""
+
+
 
        if df.empty:
            print("⚠️ Ninguna acción pasa los filtros absolutos.")
            return None
 
-       # 4️⃣ Normalización (z-score inverso)
-       z_scores = df[["P/E", "P/B", "EV/EBITDA", "P/S"]].apply(
+       # 4️⃣ Normalización (z-score inverso) por columnas
+       z_scores = df[["P/E", "P/B" ]].apply(       
            lambda x: -(x - np.nanmean(x)) / np.nanstd(x)
        )
+       
+       """, "EV/EBITDA", "P/S" """
 
-       # 5️⃣ Calcular Composite Value (media de z-scores)
+       # 5️⃣ Calcular Composite Value (media de z-scores)  por fila
        df["Composite Value"] = z_scores.mean(axis=1)
        # 6️⃣ Calcular Composite_z (z-score del Composite Value)
        df["Composite_z"] = (df["Composite Value"] - df["Composite Value"].mean()) / df["Composite Value"].std()
-
+       # J· repasar este calculo de arriba, no me cuadra
 
        # 6️⃣ Ranking final
        df["Ranking"] = df["Composite Value"].rank(ascending=False)
@@ -204,6 +210,88 @@ class valueMomentumClass:
         
        return df[["Ticker", "Sector", "P/E", "P/B", "EV/EBITDA", "P/S",
                    "Composite Value", "Composite_z", "Ranking"]]
+    
+    def obtener_composite_value_tickers(self, tickers, sector='fin'):
+        """
+        Calcula el Composite Value (promedio normalizado de ratios de valoración) 
+        para una lista de tickers. 
+        Selecciona los ratios adecuados según el sector (fin, tech, energy, ind, health...).
+        """
+    
+        import pandas as pd
+        import numpy as np
+        import yfinance as yf
+    
+        # 1️⃣ Diccionario de ratios por sector
+        sector_ratios = {
+            'fin': ["P/E", "P/B"],  # Bancos, financieras
+            'energy': ["P/E", "EV/EBITDA", "P/S"],
+            'tech': ["P/E", "P/S", "P/B"],
+            'ind': ["P/E", "EV/EBITDA", "P/B"],
+            'health': ["P/E", "P/B", "P/S"],
+            'default': ["P/E", "P/B", "EV/EBITDA", "P/S"]
+        }
+    
+        # 2️⃣ Escoger ratios según el sector
+        ratios = sector_ratios.get(sector.lower(), sector_ratios['default'])
+        print(f"🔎 Sector: {sector} → usando ratios: {ratios}")
+    
+        data = []
+    
+        # 3️⃣ Descargar datos de Yahoo Finance
+        for t in tickers:
+            try:
+                info = yf.Ticker(t).get_info()
+                data.append({
+                    "Ticker": t,
+                    "P/E": info.get("trailingPE", np.nan),
+                    "P/B": info.get("priceToBook", np.nan),
+                    "EV/EBITDA": info.get("enterpriseToEbitda", np.nan),
+                    "P/S": info.get("priceToSalesTrailing12Months", np.nan),
+                    "Sector": info.get("sector", "Unknown")
+                })
+            except Exception as e:
+                print(f"Error con {t}: {e}")
+    
+        df = pd.DataFrame(data)
+    
+        if df.empty:
+            print("⚠️ No se pudieron descargar datos válidos.")
+            return None
+    
+        # 4️⃣ Limpieza de datos (solo las columnas elegidas)
+        for col in ratios:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+            df.loc[(df[col] <= 0) | (df[col] > 200), col] = np.nan  # filtrar outliers absurdos
+    
+        # 5️⃣ Filtros absolutos básicos (según sector)
+        if sector == 'fin':
+            df = df.loc[(df["P/E"] > 5) & (df["P/E"] < 20) &
+                        (df["P/B"] > 0.4) & (df["P/B"] < 2.0)].copy()
+        elif sector == 'energy':
+            df = df.loc[(df["EV/EBITDA"] > 2) & (df["EV/EBITDA"] < 15)].copy()
+        elif sector == 'tech':
+            df = df.loc[(df["P/S"] > 1) & (df["P/S"] < 10)].copy()
+    
+        if df.empty:
+            print("⚠️ Ninguna acción pasa los filtros absolutos.")
+            return None
+    
+        # 6️⃣ Normalización (z-score inverso)
+        z_scores = df[ratios].apply(lambda x: -(x - np.nanmean(x)) / np.nanstd(x))
+    
+        # 7️⃣ Calcular Composite Value y z-score final
+        df["Composite Value"] = z_scores.mean(axis=1)
+        df["Composite_z"] = (df["Composite Value"] - df["Composite Value"].mean()) / df["Composite Value"].std()
+    
+        # 8️⃣ Ranking final
+        df["Ranking"] = df["Composite Value"].rank(ascending=False)
+        df.sort_values("Composite Value", ascending=False, inplace=True)
+        df.reset_index(drop=True, inplace=True)
+    
+        return df[["Ticker", "Sector"] + ratios + ["Composite Value", "Composite_z", "Ranking"]]
+    
+    
     
     def obtener_momentum_log(self, tickers, period=252, start="2020-01-01", end=None):
         """
@@ -327,7 +415,33 @@ class valueMomentumClass:
         plt.grid(alpha=0.3)
         plt.show()
 
-    
+    def graficar_ranking(self, df_final):
+        
+        import matplotlib.pyplot as plt
+             
+        # 3️⃣ Ordenar de mayor a menor atractivo
+        df_sorted = df_final.sort_values("Score_total", ascending=False).reset_index(drop=True)
+        
+        # 4️⃣ Mostrar resultados en tabla
+        top_n=10
+        print("\n🏁 Ranking de acciones por Score_total (Value + Momentum):\n")
+        print(df_sorted[["Ticker", "Composite_z", "Momentum_z", "Score_total"]].head(top_n).to_string(index=False))
+        
+        # 5️⃣ Visualización (opcional)
+        #if grafico:
+
+        top_df = df_sorted.head(top_n)
+        plt.figure(figsize=(10,6))
+        plt.barh(top_df["Ticker"], top_df["Score_total"], color="dodgerblue", alpha=0.8)
+        # Línea vertical roja en x=1
+        plt.axvline(x=1, color="red", linestyle="--", linewidth=2, label="Umbral Score=1")
+        
+        plt.xlabel("Score Total (Value + Momentum)")
+        plt.title(f"Top {top_n} acciones según Score_total")
+        plt.gca().invert_yaxis()  # Mostrar el top arriba
+        plt.grid(axis="x", linestyle="--", alpha=0.4)
+        plt.show()       
+             
  
     
 #################################################### Clase FIN
@@ -372,7 +486,7 @@ if __name__ == '__main__':
     #tickers = ["AAPL", "MSFT", "JPM", "XOM", "AMZN", "META", "NVDA", "KO", "PFE", "INTC"]
     
     tickers=  tickers_financials
-    df_val = objEstra.obtener_composite_value_tickers(tickers)
+    df_val = objEstra.obtener_composite_value_tickers(tickers, sector='fin')
     
     df_mom = objEstra.obtener_momentum_log(tickers, period=252)  # semestral
     
@@ -388,9 +502,13 @@ if __name__ == '__main__':
     df_final.reset_index(drop=True, inplace=True)
     
     
+    
+    
     objEstra.graficar_dispersion(df_final)
     objEstra.graficar_burbujas(df_final)
+    objEstra.graficar_ranking(df_final)
 
+ 
     
     print('This is it................ 1')
     

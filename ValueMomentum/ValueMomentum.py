@@ -347,6 +347,81 @@ class valueMomentumClass:
 
         return df_mom
     
+
+
+
+    
+    def calcular_momentum_regresion_tickers(self, tickers, window_sma=20, window_reg=60):
+        """
+        Calcula el momentum (pendiente de la regresión del log-precio sobre la SMA)
+        para una lista de tickers. Devuelve un DataFrame con las pendientes normalizadas (z-score).
+
+        Parámetros:
+        -----------
+        tickers : list[str]
+            Lista de símbolos (por ejemplo ['AAPL', 'MSFT', 'JPM'])
+        window_sma : int
+            Periodo de la media móvil (por defecto 20)
+        window_reg : int
+            Ventana usada en la regresión (por defecto 60 días)
+
+        Retorna:
+        --------
+        DataFrame con columnas:
+            ['Ticker', 'Momentum_beta', 'Momentum_z']
+        """
+        
+        import numpy as np
+        import pandas as pd
+        from sklearn.linear_model import LinearRegression
+        import yfinance as yf
+        
+        resultados = []
+
+        for t in tickers:
+            try:
+                data = yf.download(t, period=f"{window_reg*2}d", interval="1d", progress=False)
+                if data.empty:
+                    print(f"⚠️ {t}: sin datos válidos.")
+                    continue
+
+                # 1️⃣ Calcular SMA
+                data["SMA"] = data["Close"].rolling(window_sma).mean()
+                y = np.log(data["SMA"].dropna().values[-window_reg:])
+                x = np.arange(len(y)).reshape(-1, 1)
+
+                if len(y) < window_reg / 2:
+                    print(f"⚠️ {t}: datos insuficientes para regresión.")
+                    continue
+
+                # 2️⃣ Ajustar regresión lineal
+                model = LinearRegression().fit(x, y)
+                beta = model.coef_[0]  # pendiente
+
+                resultados.append({"Ticker": t, "Momentum_beta": beta})
+
+            except Exception as e:
+                print(f"Error al calcular momentum para {t}: {e}")
+
+        # 3️⃣ Convertir a DataFrame
+        df_mom = pd.DataFrame(resultados)
+
+        if df_mom.empty:
+            print("⚠️ Ningún ticker con momentum válido.")
+            return None
+
+        # 4️⃣ Normalizar pendientes (z-score)
+        df_mom["Momentum_z"] = (df_mom["Momentum_beta"] - df_mom["Momentum_beta"].mean()) / df_mom["Momentum_beta"].std()
+
+        # 5️⃣ Ordenar por momentum
+        df_mom.sort_values("Momentum_z", ascending=False, inplace=True)
+        df_mom.reset_index(drop=True, inplace=True)
+
+        return df_mom
+
+
+
+    
     def graficar_dispersion(self, df_final):
        """
        Genera un gráfico de dispersión (scatter) para visualizar la relación 
@@ -488,7 +563,10 @@ if __name__ == '__main__':
     tickers=  tickers_financials
     df_val = objEstra.obtener_composite_value_tickers(tickers, sector='fin')
     
-    df_mom = objEstra.obtener_momentum_log(tickers, period=252)  # semestral
+    #df_mom = objEstra.obtener_momentum_log(tickers, period=252)  # semestral
+    
+
+    df_mom=objEstra.calcular_momentum_regresion_tickers(tickers)
     
      # Fusionar ambos DataFrames
     df_final = pd.merge(df_val, df_mom, on="Ticker", how="inner")

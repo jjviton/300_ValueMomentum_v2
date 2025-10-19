@@ -297,6 +297,8 @@ class valueMomentumClass:
         """
         Calcula el momentum logarítmico para una lista de tickers en el periodo indicado. Por defecto un año 252
         Devuelve un DataFrame con el momentum y su ranking (1 = más momentum).
+        Problema: dehecahmos esta metrica porque calcula el momento entre dos puntos... no es muy matematico.
+        Mejoramos haciendo regresion lineal en la funcion calcular_momentum_regresion_tickers
         
         Parámetros
         ----------
@@ -418,6 +420,132 @@ class valueMomentumClass:
         df_mom.reset_index(drop=True, inplace=True)
 
         return df_mom
+
+    def comprar(self, ticker):
+        # Aquí pondrías tu lógica real de compra, API o simulación
+        print(f"Ejecutando compra de {ticker}")
+        
+        #Llamamos al constructor de la Clase compraVenta con el ID de la cuenta
+        import sys
+        import importlib
+        sys.path.append("C:\\Users\\jjjimenez\\Documents\\quant\\999_Automatic\\999_Automatic")
+        automatic = importlib.import_module("automatic", "C:\\Users\\jjjimenez\\Documents\\quant\\999_Automatic\\999_Automatic")
+
+
+        alpacaAPI= automatic.tradeAPIClass(para2=automatic.CUENTA_J3_01) 
+        
+        
+        orderID= alpacaAPI.placeOrder(ticker, 1)
+        
+        
+        
+        return "ok"
+
+        
+    def analizar(self, df_tickers, window=60):
+        """
+        Analiza una lista de tickers según una estrategia técnica usando 'ta'.
+        Detecta automáticamente si el DataFrame tiene MultiIndex y lo aplana.
+        Devuelve un DataFrame con los tickers que cumplen las condiciones.
+        """
+        import yfinance as yf
+        import pandas as pd
+        import numpy as np
+        import ta
+    
+        resultados = []
+    
+        # Convertir la lista de tickers en lista pura
+        tickers = df_tickers["Ticker"].tolist()
+    
+        # Descargar todos los tickers juntos para mejorar rendimiento
+        data_all = yf.download(tickers, period=f"{window*2}d", interval="1d", progress=False)
+    
+        # Si los datos tienen MultiIndex (varios tickers)
+        if isinstance(data_all.columns, pd.MultiIndex):
+            # Aplanar o iterar por ticker
+            for t in tickers:
+                try:
+                    # Extraer los datos de un ticker específico
+                    data = data_all.xs(t, level=1, axis=1).dropna()
+    
+                    if data.empty:
+                        print(f"⚠️ {t}: sin datos válidos.")
+                        continue
+    
+                    # Calcular indicadores técnicos
+                    high = data["High"].squeeze().astype(float)
+                    low = data["Low"].squeeze().astype(float)
+                    close = data["Close"].squeeze().astype(float)
+    
+                    data["SMA50"] = close.rolling(50).mean()
+                    data["ADX"] = ta.trend.adx(high, low, close, window=14)
+                    data["MACD"] = ta.trend.macd(close)
+                    data["MACD_signal"] = ta.trend.macd_signal(close)
+    
+                    # Condiciones de compra
+                    adx_ok = data["ADX"].iloc[-1] > 25
+                    sma_ok = close.iloc[-1] > data["SMA50"].iloc[-1]
+                    macd_ok = data["MACD"].iloc[-1] > data["MACD_signal"].iloc[-1]
+    
+                    if adx_ok and sma_ok and macd_ok:
+                        resultados.append({
+                            "Ticker": t,
+                            "ADX": round(data["ADX"].iloc[-1], 2),
+                            "Close": round(close.iloc[-1], 2),
+                            "SMA50": round(data["SMA50"].iloc[-1], 2),
+                            "MACD": round(data["MACD"].iloc[-1], 3),
+                            "MACD_signal": round(data["MACD_signal"].iloc[-1], 3),
+                            "Buy_Signal": True
+                        })
+    
+                except Exception as e:
+                    print(f"❌ Error con {t}: {e}")
+    
+        else:
+            # Caso: datos de un solo ticker (sin MultiIndex)
+            try:
+                t = tickers[0]
+                data = data_all.dropna()
+    
+                high = data["High"].squeeze().astype(float)
+                low = data["Low"].squeeze().astype(float)
+                close = data["Close"].squeeze().astype(float)
+    
+                data["SMA50"] = close.rolling(50).mean()
+                data["ADX"] = ta.trend.adx(high, low, close, window=14)
+                data["MACD"] = ta.trend.macd(close)
+                data["MACD_signal"] = ta.trend.macd_signal(close)
+    
+                adx_ok = data["ADX"].iloc[-1] > 25
+                sma_ok = close.iloc[-1] > data["SMA50"].iloc[-1]
+                macd_ok = data["MACD"].iloc[-1] > data["MACD_signal"].iloc[-1]
+    
+                if adx_ok and sma_ok and macd_ok:
+                    resultados.append({
+                        "Ticker": t,
+                        "ADX": round(data["ADX"].iloc[-1], 2),
+                        "Close": round(close.iloc[-1], 2),
+                        "SMA50": round(data["SMA50"].iloc[-1], 2),
+                        "MACD": round(data["MACD"].iloc[-1], 3),
+                        "MACD_signal": round(data["MACD_signal"].iloc[-1], 3),
+                        "Buy_Signal": True
+                    })
+    
+            except Exception as e:
+                print(f"❌ Error con {t}: {e}")
+    
+        # Convertir resultados a DataFrame
+        df_result = pd.DataFrame(resultados)
+    
+        if df_result.empty:
+            print("⚠️ Ningún ticker cumple la estrategia técnica.")
+        else:
+            print(f"✅ {len(df_result)} tickers cumplen las condiciones.")
+    
+        return df_result
+    
+    
 
 
 
@@ -553,6 +681,9 @@ if __name__ == '__main__':
     
     objEstra =valueMomentumClass("AMZN")
     
+    
+    #objEstra.comprar("LNC")
+    
     objEstra.obtener_per(objEstra.ticker)
     
     print(f"PER de {objEstra.ticker}", objEstra.obtener_per(objEstra.ticker))
@@ -579,16 +710,44 @@ if __name__ == '__main__':
     df_final.sort_values("Score_total", ascending=False, inplace=True)
     df_final.reset_index(drop=True, inplace=True)
     
-    
-    
-    
-    objEstra.graficar_dispersion(df_final)
+    #graficamos    
+    #objEstra.graficar_dispersion(df_final)
     objEstra.graficar_burbujas(df_final)
     objEstra.graficar_ranking(df_final)
 
+    #######################################################################
+    #  Decision de compra
+    
+    
+    # 1.- Total score por encima de 1 --> BUY 
+
+
+    df_compra = df_final[df_final["Score_total"] > 1]
+    
+    for _, fila in df_compra.iterrows():
+        ticker = fila["Ticker"]
+        score = fila["Score_total"]
+        print(f"🟢 Comprando {ticker} (Score={score:.2f})")
+        objEstra.comprar(ticker)
+
+    
+    # 2.- TotalScore entre 0,5 y 1 confirmacion tecnica
+    df_analizar = df_final[(df_final["Score_total"] > 0.5) & (df_final["Score_total"] < 1)]
+    
+    df_compra = objEstra.analizar(df_analizar)
+
+    if df_compra.empty:
+        print(f"⚠️Sin buenas inversiones tras analisis 0.5 to 1.")
+    else:
+        for _, fila in df_compra.iterrows():
+            ticker = fila["Ticker"]
+            score = fila["Score_total"]
+            print(f"🟢 Comprando {ticker} (Score={score:.2f})")
+            objEstra.comprar(ticker)
+
  
     
-    print('This is it................ 1')
+    print('✅✅ This is it................ 1')
     
 
 

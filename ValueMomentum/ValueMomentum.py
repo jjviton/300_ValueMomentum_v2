@@ -425,6 +425,8 @@ class valueMomentumClass:
         # Aquí pondrías tu lógica real de compra, API o simulación
         print(f"Ejecutando compra de {ticker}")
         
+        
+        
         #Llamamos al constructor de la Clase compraVenta con el ID de la cuenta
         import sys
         import importlib
@@ -434,8 +436,12 @@ class valueMomentumClass:
 
         alpacaAPI= automatic.tradeAPIClass(para2=automatic.CUENTA_J3_01) 
         
+        cantidad = alpacaAPI.positionExist(ticker)
         
-        orderID= alpacaAPI.placeOrder(ticker, 1)
+        if (cantidad == 0):
+            orderID= alpacaAPI.placeOrder(ticker, 1)
+        else:
+            print(f"⚠️🔴 {ticker}: Ya estamos comprados .")
         
         
         
@@ -712,8 +718,8 @@ if __name__ == '__main__':
     
     #graficamos    
     #objEstra.graficar_dispersion(df_final)
-    objEstra.graficar_burbujas(df_final)
-    objEstra.graficar_ranking(df_final)
+    #objEstra.graficar_burbujas(df_final)
+    #objEstra.graficar_ranking(df_final)
 
     #######################################################################
     #  Decision de compra
@@ -727,7 +733,7 @@ if __name__ == '__main__':
     for _, fila in df_compra.iterrows():
         ticker = fila["Ticker"]
         score = fila["Score_total"]
-        print(f"🟢 Comprando {ticker} (Score={score:.2f})")
+        print(f"🟢 Evaluando la compra de {ticker} (Score={score:.2f})")
         objEstra.comprar(ticker)
 
     
@@ -737,15 +743,19 @@ if __name__ == '__main__':
     df_compra = objEstra.analizar(df_analizar)
 
     if df_compra.empty:
-        print(f"⚠️Sin buenas inversiones tras analisis 0.5 to 1.")
+        print(f"⚠️ Sin buenas inversiones tras analisis 0.5 to 1.")
     else:
         for _, fila in df_compra.iterrows():
             ticker = fila["Ticker"]
             score = fila["Score_total"]
-            print(f"🟢 Comprando {ticker} (Score={score:.2f})")
+            print(f"🟢 Evaluando la compra de {ticker} (Score={score:.2f})")
             objEstra.comprar(ticker)
 
- 
+    
+    import keyboard
+    print("Pulsa una tecla para finalizar ")
+    tecla = keyboard.read_key()
+    
     
     print('✅✅ This is it................ 1')
     

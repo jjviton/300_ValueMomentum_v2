@@ -446,7 +446,130 @@ class valueMomentumClass:
         
         
         return "ok"
+    
+    def vender (self):
+        """
+        De los valores invertidos, ejecuta la estrategia de salida
+        
+        Parámetros:
+        -----------
 
+        Retorna:
+        --------
+
+        """
+        
+        
+        #Llamamos al constructor de la Clase compraVenta con el ID de la cuenta
+        import sys
+        import importlib
+        import ta
+        sys.path.append("C:\\Users\\jjjimenez\\Documents\\quant\\999_Automatic\\999_Automatic")
+        automatic = importlib.import_module("automatic", "C:\\Users\\jjjimenez\\Documents\\quant\\999_Automatic\\999_Automatic")
+
+
+        alpacaAPI= automatic.tradeAPIClass(para2=automatic.CUENTA_J3_01) 
+        
+        # 1️⃣ Obtener las posiciones abiertas desde Alpaca
+        posiciones = alpacaAPI.get_positions()
+    
+        if isinstance(posiciones, pd.DataFrame):
+            df_valores = posiciones.copy()
+        else:
+            # Convertir lista de dicts en DataFrame si es necesario
+            df_valores = pd.DataFrame([p._raw for p in posiciones])
+    
+        if df_valores.empty:
+            print("⚠️ No hay posiciones abiertas en la cuenta Alpaca.")
+            return pd.DataFrame()
+    
+        # 2️⃣ Normalizar columnas (Alpaca usa snake_case y strings)
+        df_valores.rename(columns={
+            "symbol": "symbol",
+            "qty": "qty",
+            "avg_entry_price": "avg_entry_price",
+            "current_price": "current_price",
+            "unrealized_pl": "unrealized_pl"
+        }, inplace=True, errors="ignore")
+    
+        # Convertir tipos numéricos
+        cols_num = ["qty", "avg_entry_price", "current_price", "unrealized_pl"]
+        for c in cols_num:
+            df_valores[c] = pd.to_numeric(df_valores[c], errors="coerce")
+    
+        tickers = df_valores["symbol"].unique().tolist()
+    
+        # 3️⃣ Descargar datos históricos en bloque
+        data_all = yf.download(tickers, period="6mo", interval="1d", progress=False)
+        multi = isinstance(data_all.columns, pd.MultiIndex)
+    
+        resultados = []
+    
+        # 4️⃣ Analizar cada ticker
+        for t in tickers:
+            try:
+                # Extraer datos del ticker
+                data = data_all.xs(t, level=1, axis=1).dropna() if multi else data_all.dropna()
+    
+                # Calcular indicadores técnicos
+                data["SMA50"] = data["Close"].rolling(50).mean()
+                data["ADX"] = ta.trend.adx(data["High"], data["Low"], data["Close"], window=14)
+                data["MACD"] = ta.trend.macd(data["Close"])
+                data["MACD_signal"] = ta.trend.macd_signal(data["Close"])
+                data["ATR"] = ta.volatility.average_true_range(data["High"], data["Low"], data["Close"], window=14)
+    
+                # Últimos valores
+                close = data["Close"].iloc[-1]
+                sma50 = data["SMA50"].iloc[-1]
+                macd = data["MACD"].iloc[-1]
+                macd_signal = data["MACD_signal"].iloc[-1]
+                adx = data["ADX"].iloc[-1]
+                atr = data["ATR"].iloc[-1]
+                max20 = data["Close"].rolling(20).max().iloc[-1]
+    
+                # (Opcional) Score_total del modelo cuantitativo
+                '''
+                score_total = None
+                if df_scores is not None and t in df_scores["Ticker"].values:
+                    score_total = df_scores.loc[df_scores["Ticker"] == t, "Score_total"].values[0]
+                '''
+                # 5️⃣ Reglas de salida
+                #salida_tecnica = (close < sma50) or (macd < macd_signal) or (adx < 20)
+                stop_dinamico = close < (max20 - 2 * atr)
+                #salida_score = (score_total is not None and score_total < 0.5)
+    
+                salida =  stop_dinamico #or salida_score  salida_tecnica or
+    
+                fila = df_valores.loc[df_valores["symbol"] == t].iloc[0]
+    
+                resultados.append({
+                    "symbol": t,
+                    "qty": fila["qty"],
+                    "avg_entry_price": fila["avg_entry_price"],
+                    "current_price": fila["current_price"],
+                    "unrealized_pl": fila["unrealized_pl"],
+                    "ADX": round(adx, 2),
+                    "SMA50": round(sma50, 2),
+                    "MACD": round(macd, 3),
+                    "MACD_signal": round(macd_signal, 3),
+                    "ATR": round(atr, 3),
+                    "Score_total": 32,               #"score_total",
+                    "Exit_Signal": salida
+                })
+    
+            except Exception as e:
+                print(f"❌ Error procesando {t}: {e}")
+    
+        df_result = pd.DataFrame(resultados)
+    
+        if df_result.empty:
+            print("⚠️ No se generaron señales de salida.")
+        else:
+            print(f"✅ {len(df_result)} posiciones analizadas correctamente.")
+    
+        return df_result
+    
+    
         
     def analizar(self, df_tickers, window=60):
         """
@@ -551,43 +674,151 @@ class valueMomentumClass:
     
         return df_result
     
+        
+    def backtest(self, tickers, start="2015-01-01", end="2025-01-01", score_threshold=1.0, atr_mult=2):
+        """
+        Backtest simplificado de la estrategia Value + Momentum + Stop ATR.
+        Simula compras cuando el Score_total es alto y salidas cuando salta el stop dinámico.
+        """
     
-
-
-
+        import pandas as pd
+        import numpy as np
+        import yfinance as yf
+        from datetime import timedelta
     
-    def graficar_dispersion(self, df_final):
-       """
-       Genera un gráfico de dispersión (scatter) para visualizar la relación 
-       entre Value (Composite_z) y Momentum (Momentum_z).
-       El color de los puntos representa el Score_total.
-       """
-       import matplotlib.pyplot as plt
-
-       if not all(col in df_final.columns for col in ["Composite_z", "Momentum_z", "Score_total", "Ticker"]):
-           print("❌ Error: faltan columnas necesarias en df_final.")
-           return
-
-       plt.figure(figsize=(8,6))
-       sc = plt.scatter(
-           df_final["Composite_z"], 
-           df_final["Momentum_z"],
-           c=df_final["Score_total"],
-           cmap="viridis",
-           s=120,
-           edgecolors="k"
-       )
-
-       # Etiquetas con nombres de los tickers
-       for i, txt in enumerate(df_final["Ticker"]):
-           plt.annotate(txt, (df_final["Composite_z"][i], df_final["Momentum_z"][i]), fontsize=9)
-
-       plt.xlabel("Value (Composite_z)")
-       plt.ylabel("Momentum (Momentum_z)")
-       plt.title("Mapa Value vs Momentum (color = Score total)")
-       plt.colorbar(sc, label="Score total")
-       plt.grid(True, linestyle="--", alpha=0.6)
-       plt.show()   
+        results = []
+        equity_curve = pd.Series(dtype=float)
+    
+        for t in tickers:
+            try:
+                # 1️⃣ Descargar precios
+                data = yf.download(t, start=start, end=end, progress=False)
+                if data.empty:
+                    continue
+    
+                # 2️⃣ Calcular indicadores técnicos
+                data["H-L"] = data["High"] - data["Low"]
+                data["H-PC"] = abs(data["High"] - data["Close"].shift(1))
+                data["L-PC"] = abs(data["Low"] - data["Close"].shift(1))
+                data["TR"] = data[["H-L", "H-PC", "L-PC"]].max(axis=1)
+                data["ATR"] = data["TR"].rolling(14).mean()
+    
+                data["max20"] = data["High"].rolling(20).max()
+                data["stop_atr"] = data["max20"] - atr_mult * data["ATR"]
+    
+                # 3️⃣ Simular señales
+                # Entrada: Score_total alto (aquí simulamos un score aleatorio por ejemplo)
+                np.random.seed(0)
+                data["Score_total"] = np.random.normal(0.8, 0.4, len(data))  # TODO: reemplazar con tu score real
+                data["signal"] = 0
+                data.loc[data["Score_total"] > score_threshold, "signal"] = 1
+                
+                ###########
+                df_val = self.obtener_composite_value_tickers(tickers, sector='fin')
+                
+                #df_mom = objEstra.obtener_momentum_log(tickers, period=252)  # semestral
+                df_mom =self.calcular_momentum_regresion_tickers(tickers)
+                
+                 # Fusionar ambos DataFrames
+                df_final = pd.merge(df_val, df_mom, on="Ticker", how="inner")
+                
+                # Calcular score total combinado (igual peso)
+                df_final["Score_total"] = 0.5 * df_final["Composite_z"] + 0.5 * df_final["Momentum_z"]
+                
+                # Ranking general
+                df_final["Ranking_Total"] = df_final["Score_total"].rank(ascending=False)
+                df_final.sort_values("Score_total", ascending=False, inplace=True)
+                df_final.reset_index(drop=True, inplace=True)
+                
+                data["Score_total"] = df_final["Ranking_Total"]
+                data["signal"] = 0
+                data.loc[data["Score_total"] > score_threshold, "signal"] = 1
+                
+                #############
+                
+                
+                
+    
+                # Salida: Stop ATR
+                data.loc[data["Close"] < data["stop_atr"], "signal"] = 0
+    
+                # 4️⃣ Determinar posición
+                data["position"] = data["signal"].shift(1).ffill()
+    
+                # 5️⃣ Calcular rendimiento diario
+                data["returns"] = data["Close"].pct_change()
+                data["strategy"] = data["position"] * data["returns"]
+    
+                # 6️⃣ Acumular resultado
+                cumulative = (1 + data["strategy"].fillna(0)).cumprod()
+                results.append({
+                    "Ticker": t,
+                    "Total_Return": cumulative.iloc[-1] - 1,
+                    "CAGR": ((1 + cumulative.iloc[-1]) ** (252 / len(data)) - 1),
+                    "Sharpe": np.sqrt(252) * data["strategy"].mean() / data["strategy"].std(),
+                    "Max_Drawdown": (cumulative / cumulative.cummax() - 1).min()
+                })
+    
+                equity_curve = equity_curve.add(cumulative, fill_value=0)
+    
+            except Exception as e:
+                print(f"⚠️ Error en {t}: {e}")
+    
+        # 7️⃣ Consolidar resultados
+        df_results = pd.DataFrame(results)
+        df_results.sort_values("CAGR", ascending=False, inplace=True)
+        equity_curve /= len(results)  # promedio
+    
+        # 8️⃣ Mostrar resultados
+        import matplotlib.pyplot as plt
+        plt.figure(figsize=(10, 5))
+        plt.plot(equity_curve.index, equity_curve.values, label="Estrategia")
+        plt.title("Curva de capital promedio - Value + Momentum + Stop ATR")
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+    
+        print("Resumen del Backtest:\n", df_results.round(3))
+        print("\nRentabilidad media:", df_results["CAGR"].mean())
+        print("Sharpe promedio:", df_results["Sharpe"].mean())
+    
+        return df_results
+    
+    
+    
+        
+        def graficar_dispersion(self, df_final):
+           """
+           Genera un gráfico de dispersión (scatter) para visualizar la relación 
+           entre Value (Composite_z) y Momentum (Momentum_z).
+           El color de los puntos representa el Score_total.
+           """
+           import matplotlib.pyplot as plt
+    
+           if not all(col in df_final.columns for col in ["Composite_z", "Momentum_z", "Score_total", "Ticker"]):
+               print("❌ Error: faltan columnas necesarias en df_final.")
+               return
+    
+           plt.figure(figsize=(8,6))
+           sc = plt.scatter(
+               df_final["Composite_z"], 
+               df_final["Momentum_z"],
+               c=df_final["Score_total"],
+               cmap="viridis",
+               s=120,
+               edgecolors="k"
+           )
+    
+           # Etiquetas con nombres de los tickers
+           for i, txt in enumerate(df_final["Ticker"]):
+               plt.annotate(txt, (df_final["Composite_z"][i], df_final["Momentum_z"][i]), fontsize=9)
+    
+           plt.xlabel("Value (Composite_z)")
+           plt.ylabel("Momentum (Momentum_z)")
+           plt.title("Mapa Value vs Momentum (color = Score total)")
+           plt.colorbar(sc, label="Score total")
+           plt.grid(True, linestyle="--", alpha=0.6)
+           plt.show()   
     
     def graficar_burbujas(self, df_final):
         """
@@ -688,21 +919,23 @@ if __name__ == '__main__':
     objEstra =valueMomentumClass("AMZN")
     
     
-    #objEstra.comprar("LNC")
+    #
+    #objEstra.vender()
+    
     
     objEstra.obtener_per(objEstra.ticker)
     
     print(f"PER de {objEstra.ticker}", objEstra.obtener_per(objEstra.ticker))
 
 
-    #tickers = ["AAPL", "MSFT", "JPM", "XOM", "AMZN", "META", "NVDA", "KO", "PFE", "INTC"]
+    tickers = ["AAPL", "MSFT", "JPM", "XOM", "AMZN", "META", "NVDA", "KO", "PFE", "INTC"]
+    #objEstra.backtest(tickers, start="2015-01-01", end="2025-01-01", score_threshold=1.0, atr_mult=2)
+    
     
     tickers=  tickers_financials
     df_val = objEstra.obtener_composite_value_tickers(tickers, sector='fin')
     
     #df_mom = objEstra.obtener_momentum_log(tickers, period=252)  # semestral
-    
-
     df_mom=objEstra.calcular_momentum_regresion_tickers(tickers)
     
      # Fusionar ambos DataFrames
@@ -718,15 +951,14 @@ if __name__ == '__main__':
     
     #graficamos    
     #objEstra.graficar_dispersion(df_final)
-    #objEstra.graficar_burbujas(df_final)
-    #objEstra.graficar_ranking(df_final)
+    objEstra.graficar_burbujas(df_final)
+    objEstra.graficar_ranking(df_final)
 
     #######################################################################
     #  Decision de compra
     
     
     # 1.- Total score por encima de 1 --> BUY 
-
 
     df_compra = df_final[df_final["Score_total"] > 1]
     

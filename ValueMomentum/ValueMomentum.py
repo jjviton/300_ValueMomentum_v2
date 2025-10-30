@@ -49,7 +49,7 @@ Author: J3Viton
 
 """
 
-# J3_DEBUG__ = False  #variable global (global J3_DEBUG__ )
+DEBUG__ = True #False  #variable global (global J3_DEBUG__ )
 
 
 ################################ IMPORTAMOS MODULOS A UTILIZAR.
@@ -71,7 +71,7 @@ for handler in logging.root.handlers[:]:
     logging.root.removeHandler(handler)
 logging.basicConfig(filename='../log/registro.log', level=logging.INFO ,force=True,
                     format='%(asctime)s:%(levelname)s:%(message)s')
-logging.warning('esto es una kkk')
+logging.warning('Paso por ValueMomentum, esto es una migita')
 
 #### Variables globales  (refereniarlas con 'global' desde el codigo
 versionVersion = 0.1
@@ -447,7 +447,28 @@ class valueMomentumClass:
         
         return "ok"
     
-    def vender (self):
+    def vender(self, ticker):
+        # Aquí pondrías tu lógica real de compra, API o simulación
+        print(f"Ejecutando VENTA de {ticker}")
+        
+        
+        
+        #Llamamos al constructor de la Clase compraVenta con el ID de la cuenta
+        import sys
+        import importlib
+        sys.path.append("C:\\Users\\jjjimenez\\Documents\\quant\\999_Automatic\\999_Automatic")
+        automatic = importlib.import_module("automatic", "C:\\Users\\jjjimenez\\Documents\\quant\\999_Automatic\\999_Automatic")
+
+        alpacaAPI= automatic.tradeAPIClass(para2=automatic.CUENTA_J3_01) 
+        
+        #ticker= 'LNC'
+        alpacaAPI.placeOrderSell(ticker,1)        
+        
+        
+        
+        return "ok"    
+    
+    def vender_con_estrategia (self):
         """
         De los valores invertidos, ejecuta la estrategia de salida
         
@@ -513,6 +534,7 @@ class valueMomentumClass:
     
                 # Calcular indicadores técnicos
                 data["SMA50"] = data["Close"].rolling(50).mean()
+                data["SMA20"] = data["Close"].rolling(20).mean()
                 data["ADX"] = ta.trend.adx(data["High"], data["Low"], data["Close"], window=14)
                 data["MACD"] = ta.trend.macd(data["Close"])
                 data["MACD_signal"] = ta.trend.macd_signal(data["Close"])
@@ -521,6 +543,7 @@ class valueMomentumClass:
                 # Últimos valores
                 close = data["Close"].iloc[-1]
                 sma50 = data["SMA50"].iloc[-1]
+                sma20 = data["SMA20"].iloc[-1]
                 macd = data["MACD"].iloc[-1]
                 macd_signal = data["MACD_signal"].iloc[-1]
                 adx = data["ADX"].iloc[-1]
@@ -534,11 +557,13 @@ class valueMomentumClass:
                     score_total = df_scores.loc[df_scores["Ticker"] == t, "Score_total"].values[0]
                 '''
                 # 5️⃣ Reglas de salida
-                #salida_tecnica = (close < sma50) or (macd < macd_signal) or (adx < 20)
-                stop_dinamico = close < (max20 - 2 * atr)
-                #salida_score = (score_total is not None and score_total < 0.5)
+                salida_tecnica = bool((sma20 < sma50) and (adx > 20))   #ADX indica fortaleza de la tendencia  (macd < macd_signal) or
+                stop_dinamico = bool(False) #close < (max20 - 2 * atr)
+                salida_score = bool(False)  #(score_total is not None and score_total < 0.5)
+                
+                
     
-                salida =  stop_dinamico #or salida_score  salida_tecnica or
+                salida =  bool( stop_dinamico or salida_score  or salida_tecnica)
     
                 fila = df_valores.loc[df_valores["symbol"] == t].iloc[0]
     
@@ -550,6 +575,7 @@ class valueMomentumClass:
                     "unrealized_pl": fila["unrealized_pl"],
                     "ADX": round(adx, 2),
                     "SMA50": round(sma50, 2),
+                    "SMA20": round(sma20, 2),
                     "MACD": round(macd, 3),
                     "MACD_signal": round(macd_signal, 3),
                     "ATR": round(atr, 3),
@@ -919,8 +945,10 @@ if __name__ == '__main__':
     objEstra =valueMomentumClass("AMZN")
     
     
-    #
-    #objEstra.vender()
+    
+    #objEstra.vender('APPL')
+    
+    objEstra.vender_con_estrategia()
     
     
     objEstra.obtener_per(objEstra.ticker)
@@ -928,7 +956,7 @@ if __name__ == '__main__':
     print(f"PER de {objEstra.ticker}", objEstra.obtener_per(objEstra.ticker))
 
 
-    tickers = ["AAPL", "MSFT", "JPM", "XOM", "AMZN", "META", "NVDA", "KO", "PFE", "INTC"]
+    #tickers = ["AAPL", "MSFT", "JPM", "XOM", "AMZN", "META", "NVDA", "KO", "PFE", "INTC"]
     #objEstra.backtest(tickers, start="2015-01-01", end="2025-01-01", score_threshold=1.0, atr_mult=2)
     
     
@@ -950,17 +978,19 @@ if __name__ == '__main__':
     df_final.reset_index(drop=True, inplace=True)
     
     #graficamos    
-    #objEstra.graficar_dispersion(df_final)
-    objEstra.graficar_burbujas(df_final)
-    objEstra.graficar_ranking(df_final)
+    
+    if DEBUG__:
+            
+        #objEstra.graficar_dispersion(df_final)
+        objEstra.graficar_burbujas(df_final)
+        objEstra.graficar_ranking(df_final)
 
     #######################################################################
     #  Decision de compra
     
     
     # 1.- Total score por encima de 1 --> BUY 
-
-    df_compra = df_final[df_final["Score_total"] > 1]
+    df_compra = df_final[df_final["Score_total"] > 1.0]
     
     for _, fila in df_compra.iterrows():
         ticker = fila["Ticker"]
@@ -970,7 +1000,7 @@ if __name__ == '__main__':
 
     
     # 2.- TotalScore entre 0,5 y 1 confirmacion tecnica
-    df_analizar = df_final[(df_final["Score_total"] > 0.5) & (df_final["Score_total"] < 1)]
+    df_analizar = df_final[(df_final["Score_total"] > 0.5) & (df_final["Score_total"] < 1.0)]
     
     df_compra = objEstra.analizar(df_analizar)
 
@@ -983,16 +1013,13 @@ if __name__ == '__main__':
             print(f"🟢 Evaluando la compra de {ticker} (Score={score:.2f})")
             objEstra.comprar(ticker)
 
-    
-    import keyboard
-    print("Pulsa una tecla para finalizar ")
-    tecla = keyboard.read_key()
+    if DEBUG__:
+        import keyboard
+        print("Pulsa una tecla para finalizar ")
+        tecla = keyboard.read_key()
     
     
     print('✅✅ This is it................ 1')
-    
-
-
 
     
     """

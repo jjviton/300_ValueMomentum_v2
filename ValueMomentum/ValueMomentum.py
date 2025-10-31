@@ -948,10 +948,10 @@ if __name__ == '__main__':
     
     #objEstra.vender('APPL')
     
-    objEstra.vender_con_estrategia()
+    #objEstra.vender_con_estrategia()
     
     
-    objEstra.obtener_per(objEstra.ticker)
+    #objEstra.obtener_per(objEstra.ticker)
     
     print(f"PER de {objEstra.ticker}", objEstra.obtener_per(objEstra.ticker))
 

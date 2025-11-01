@@ -324,7 +324,7 @@ class valueMomentumClass:
         for t in tickers:
             try:
                 # Descargar precios ajustados
-                data = yf.download(t, start=start, end=end, progress=False)
+                data = yf.download(t, start=start, end=end, progress=False,auto_adjust=True)
                 if len(data) < period:
                     continue
 
@@ -382,7 +382,7 @@ class valueMomentumClass:
 
         for t in tickers:
             try:
-                data = yf.download(t, period=f"{window_reg*2}d", interval="1d", progress=False)
+                data = yf.download(t, period=f"{window_reg*2}d", interval="1d", progress=False,auto_adjust=True)
                 if data.empty:
                     print(f"⚠️ {t}: sin datos válidos.")
                     continue
@@ -425,6 +425,9 @@ class valueMomentumClass:
         # Aquí pondrías tu lógica real de compra, API o simulación
         print(f"Ejecutando compra de {ticker}")
         
+        # Compruebo la tendencia  ADX >25  SMA20>SMA50
+        if (objEstra.analizar_tendencia_UP(ticker)):
+            return False   
         
         
         #Llamamos al constructor de la Clase compraVenta con el ID de la cuenta
@@ -451,7 +454,9 @@ class valueMomentumClass:
         # Aquí pondrías tu lógica real de compra, API o simulación
         print(f"Ejecutando VENTA de {ticker}")
         
-        
+        # Compruebo la tendencia  ADX >25  SMA20>SMA50
+        if (objEstra.analizar_tendencia_DOWN(ticker)):
+            return False           
         
         #Llamamos al constructor de la Clase compraVenta con el ID de la cuenta
         import sys
@@ -467,6 +472,104 @@ class valueMomentumClass:
         
         
         return "ok"    
+
+
+    
+    def analizar_tendencia_DOWN(self, ticker, periodo="6mo"):
+        """
+        Descarga los datos históricos de un ticker y calcula los indicadores:
+        - ADX (fuerza de tendencia)
+        - SMA20 y SMA50 (medias móviles simples)
+        
+        Devuelve True si:
+          ADX > 25  y  SMA20 < SMA50   → tendencia bajista fuerte
+        """
+        
+        import yfinance as yf
+        import ta
+        import pandas as pd
+        
+        try:
+            # 1️⃣ Descargar datos históricos
+            data = yf.download(ticker, period=periodo, interval="1d", progress=False, auto_adjust=True)
+            data.columns = data.columns.droplevel(1)
+            if data.empty:
+                print(f"⚠️ No hay datos válidos para {ticker}")
+                return False
+    
+            # 2️⃣ Calcular medias móviles
+            data["SMA20"] = data["Close"].rolling(window=20).mean()
+            data["SMA50"] = data["Close"].rolling(window=50).mean()
+    
+            # 3️⃣ Calcular ADX
+            adx_indicator = ta.trend.ADXIndicator(high=data["High"], low=data["Low"], close=data["Close"], window=14)
+            data["ADX"] = adx_indicator.adx()
+    
+            # 4️⃣ Tomar los últimos valores
+            sma20 = data["SMA20"].iloc[-1]
+            sma50 = data["SMA50"].iloc[-1]
+            adx = data["ADX"].iloc[-1]
+    
+            # 5️⃣ Evaluar condición
+            if ( (adx > 25) and (sma20 < sma50)):
+                return True
+    
+            print(f"{ticker}: ADX(25)={adx:.2f}, SMA20={sma20:.2f}, SMA50={sma50:.2f} → {'✅ True' if condicion else '❌ False'}")
+
+    
+        except Exception as e:
+            print(f"Error al analizar {ticker}: {e}")
+            return False
+        return False
+    
+    def analizar_tendencia_UP(self, ticker, periodo="6mo"):
+        """
+        Descarga los datos históricos de un ticker y calcula los indicadores:
+        - ADX (fuerza de tendencia)
+        - SMA20 y SMA50 (medias móviles simples)
+        
+        Devuelve True si:
+          ADX > 25  y  SMA20 > SMA50   → tendencia Alcista fuerte
+        """
+        
+        import yfinance as yf
+        import ta
+        import pandas as pd
+        
+        try:
+            # 1️⃣ Descargar datos históricos
+            data = yf.download(ticker, period=periodo, interval="1d", progress=False, auto_adjust=True)
+            data.columns = data.columns.droplevel(1)
+            if data.empty:
+                print(f"⚠️ No hay datos válidos para {ticker}")
+                return False
+    
+            # 2️⃣ Calcular medias móviles
+            data["SMA20"] = data["Close"].rolling(window=20).mean()
+            data["SMA50"] = data["Close"].rolling(window=50).mean()
+    
+            # 3️⃣ Calcular ADX
+            adx_indicator = ta.trend.ADXIndicator(high=data["High"], low=data["Low"], close=data["Close"], window=14)
+            data["ADX"] = adx_indicator.adx()
+    
+            # 4️⃣ Tomar los últimos valores
+            sma20 = data["SMA20"].iloc[-1]
+            sma50 = data["SMA50"].iloc[-1]
+            adx = data["ADX"].iloc[-1]
+    
+            # 5️⃣ Evaluar condición
+            if ( (adx > 25) and (sma20 > sma50)):
+                return True
+    
+            print(f"{ticker}: ADX(25)={adx:.2f}, SMA20={sma20:.2f}, SMA50={sma50:.2f} → {'✅ True' if condicion else '❌ False'}")
+            return False
+    
+        except Exception as e:
+            print(f"Error al analizar {ticker}: {e}")
+            return False
+        return False
+     
+
     
     def vender_con_estrategia (self):
         """
@@ -614,7 +717,7 @@ class valueMomentumClass:
         tickers = df_tickers["Ticker"].tolist()
     
         # Descargar todos los tickers juntos para mejorar rendimiento
-        data_all = yf.download(tickers, period=f"{window*2}d", interval="1d", progress=False)
+        data_all = yf.download(tickers, period=f"{window*2}d", interval="1d", progress=False,auto_adjust=True)
     
         # Si los datos tienen MultiIndex (varios tickers)
         if isinstance(data_all.columns, pd.MultiIndex):
@@ -718,7 +821,7 @@ class valueMomentumClass:
         for t in tickers:
             try:
                 # 1️⃣ Descargar precios
-                data = yf.download(t, start=start, end=end, progress=False)
+                data = yf.download(t, start=start, end=end, progress=False,auto_adjust=True)
                 if data.empty:
                     continue
     
@@ -943,15 +1046,7 @@ if __name__ == '__main__':
     """
     
     objEstra =valueMomentumClass("AMZN")
-    
-    
-    
-    #objEstra.vender('APPL')
-    
-    #objEstra.vender_con_estrategia()
-    
-    
-    #objEstra.obtener_per(objEstra.ticker)
+
     
     print(f"PER de {objEstra.ticker}", objEstra.obtener_per(objEstra.ticker))
 
@@ -964,7 +1059,7 @@ if __name__ == '__main__':
     df_val = objEstra.obtener_composite_value_tickers(tickers, sector='fin')
     
     #df_mom = objEstra.obtener_momentum_log(tickers, period=252)  # semestral
-    df_mom=objEstra.calcular_momentum_regresion_tickers(tickers)
+    df_mom = objEstra.calcular_momentum_regresion_tickers(tickers)
     
      # Fusionar ambos DataFrames
     df_final = pd.merge(df_val, df_mom, on="Ticker", how="inner")
@@ -987,7 +1082,7 @@ if __name__ == '__main__':
 
     #######################################################################
     #  Decision de compra
-    
+    #######################################################################
     
     # 1.- Total score por encima de 1 --> BUY 
     df_compra = df_final[df_final["Score_total"] > 1.0]
@@ -1012,6 +1107,14 @@ if __name__ == '__main__':
             score = fila["Score_total"]
             print(f"🟢 Evaluando la compra de {ticker} (Score={score:.2f})")
             objEstra.comprar(ticker)
+
+
+    #######################################################################
+    #  Decision de VENTA
+    #######################################################################
+
+
+
 
     if DEBUG__:
         import keyboard

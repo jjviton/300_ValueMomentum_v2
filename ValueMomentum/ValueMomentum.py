@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-me vees...
+
 """
 *****************************************************************************
 .PY
@@ -290,8 +290,7 @@ class valueMomentumClass:
         df.reset_index(drop=True, inplace=True)
     
         return df[["Ticker", "Sector"] + ratios + ["Composite Value", "Composite_z", "Ranking"]]
-    
-    
+      
     
     def obtener_momentum_log(self, tickers, period=252, start="2020-01-01", end=None):
         """
@@ -349,9 +348,6 @@ class valueMomentumClass:
 
         return df_mom
     
-
-
-
     
     def calcular_momentum_regresion_tickers(self, tickers, window_sma=20, window_reg=60):
         """
@@ -426,7 +422,7 @@ class valueMomentumClass:
         print(f"Ejecutando compra de {ticker}")
         
         # Compruebo la tendencia  ADX >25  SMA20>SMA50
-        if (objEstra.analizar_tendencia_UP(ticker)):
+        if (not self.analizar_tendencia_UP(ticker)):
             return False   
         
         
@@ -435,27 +431,29 @@ class valueMomentumClass:
         import importlib
         sys.path.append("C:\\Users\\jjjimenez\\Documents\\quant\\999_Automatic\\999_Automatic")
         automatic = importlib.import_module("automatic", "C:\\Users\\jjjimenez\\Documents\\quant\\999_Automatic\\999_Automatic")
-
+        
+        #COMPRUEBO LA TENDENCIA ALCISTA
+        if( self.analizar_tendencia_UP(ticker)):
+            return False
 
         alpacaAPI= automatic.tradeAPIClass(para2=automatic.CUENTA_J3_01) 
         
         cantidad = alpacaAPI.positionExist(ticker)
         
+        #Compruebo que no estoy 'comprado'
         if (cantidad == 0):
             orderID= alpacaAPI.placeOrder(ticker, 1)
         else:
             print(f"⚠️🔴 {ticker}: Ya estamos comprados .")
-        
-        
-        
+            
         return "ok"
     
     def vender(self, ticker):
         # Aquí pondrías tu lógica real de compra, API o simulación
         print(f"Ejecutando VENTA de {ticker}")
         
-        # Compruebo la tendencia  ADX >25  SMA20>SMA50
-        if (objEstra.analizar_tendencia_DOWN(ticker)):
+        # Compruebo la tendencia  BAJISTA   ADX >25  SMA20>SMA50
+        if (not self.analizar_tendencia_DOWN(ticker)):
             return False           
         
         #Llamamos al constructor de la Clase compraVenta con el ID de la cuenta
@@ -472,7 +470,6 @@ class valueMomentumClass:
         
         
         return "ok"    
-
 
     
     def analizar_tendencia_DOWN(self, ticker, periodo="6mo"):
@@ -513,8 +510,8 @@ class valueMomentumClass:
             # 5️⃣ Evaluar condición
             if ( (adx > 25) and (sma20 < sma50)):
                 return True
-    
-            print(f"{ticker}: ADX(25)={adx:.2f}, SMA20={sma20:.2f}, SMA50={sma50:.2f} → {'✅ True' if condicion else '❌ False'}")
+            return False
+            #print(f"{ticker}: ADX(25)={adx:.2f}, SMA20={sma20:.2f}, SMA50={sma50:.2f} → {'✅ True' if condicion else '❌ False'}")
 
     
         except Exception as e:
@@ -558,18 +555,17 @@ class valueMomentumClass:
             adx = data["ADX"].iloc[-1]
     
             # 5️⃣ Evaluar condición
-            if ( (adx > 25) and (sma20 > sma50)):
+            if ( (adx > 25) and (sma20 > sma50)):  #sube fuerts
                 return True
     
-            print(f"{ticker}: ADX(25)={adx:.2f}, SMA20={sma20:.2f}, SMA50={sma50:.2f} → {'✅ True' if condicion else '❌ False'}")
+            #print(f"{ticker}: ADX(25)={adx:.2f}, SMA20={sma20:.2f}, SMA50={sma50:.2f} → {'✅ True' if condicion else '❌ False'}")
             return False
     
         except Exception as e:
             print(f"Error al analizar {ticker}: {e}")
             return False
         return False
-     
-
+    
     
     def vender_con_estrategia (self):
         """
@@ -623,81 +619,19 @@ class valueMomentumClass:
     
         tickers = df_valores["symbol"].unique().tolist()
     
-        # 3️⃣ Descargar datos históricos en bloque
-        data_all = yf.download(tickers, period="6mo", interval="1d", progress=False)
-        multi = isinstance(data_all.columns, pd.MultiIndex)
-    
-        resultados = []
+
     
         # 4️⃣ Analizar cada ticker
         for t in tickers:
             try:
-                # Extraer datos del ticker
-                data = data_all.xs(t, level=1, axis=1).dropna() if multi else data_all.dropna()
-    
-                # Calcular indicadores técnicos
-                data["SMA50"] = data["Close"].rolling(50).mean()
-                data["SMA20"] = data["Close"].rolling(20).mean()
-                data["ADX"] = ta.trend.adx(data["High"], data["Low"], data["Close"], window=14)
-                data["MACD"] = ta.trend.macd(data["Close"])
-                data["MACD_signal"] = ta.trend.macd_signal(data["Close"])
-                data["ATR"] = ta.volatility.average_true_range(data["High"], data["Low"], data["Close"], window=14)
-    
-                # Últimos valores
-                close = data["Close"].iloc[-1]
-                sma50 = data["SMA50"].iloc[-1]
-                sma20 = data["SMA20"].iloc[-1]
-                macd = data["MACD"].iloc[-1]
-                macd_signal = data["MACD_signal"].iloc[-1]
-                adx = data["ADX"].iloc[-1]
-                atr = data["ATR"].iloc[-1]
-                max20 = data["Close"].rolling(20).max().iloc[-1]
-    
-                # (Opcional) Score_total del modelo cuantitativo
-                '''
-                score_total = None
-                if df_scores is not None and t in df_scores["Ticker"].values:
-                    score_total = df_scores.loc[df_scores["Ticker"] == t, "Score_total"].values[0]
-                '''
-                # 5️⃣ Reglas de salida
-                salida_tecnica = bool((sma20 < sma50) and (adx > 20))   #ADX indica fortaleza de la tendencia  (macd < macd_signal) or
-                stop_dinamico = bool(False) #close < (max20 - 2 * atr)
-                salida_score = bool(False)  #(score_total is not None and score_total < 0.5)
-                
-                
-    
-                salida =  bool( stop_dinamico or salida_score  or salida_tecnica)
-    
-                fila = df_valores.loc[df_valores["symbol"] == t].iloc[0]
-    
-                resultados.append({
-                    "symbol": t,
-                    "qty": fila["qty"],
-                    "avg_entry_price": fila["avg_entry_price"],
-                    "current_price": fila["current_price"],
-                    "unrealized_pl": fila["unrealized_pl"],
-                    "ADX": round(adx, 2),
-                    "SMA50": round(sma50, 2),
-                    "SMA20": round(sma20, 2),
-                    "MACD": round(macd, 3),
-                    "MACD_signal": round(macd_signal, 3),
-                    "ATR": round(atr, 3),
-                    "Score_total": 32,               #"score_total",
-                    "Exit_Signal": salida
-                })
+                self.vender(t)
     
             except Exception as e:
                 print(f"❌ Error procesando {t}: {e}")
     
-        df_result = pd.DataFrame(resultados)
+
     
-        if df_result.empty:
-            print("⚠️ No se generaron señales de salida.")
-        else:
-            print(f"✅ {len(df_result)} posiciones analizadas correctamente.")
-    
-        return df_result
-    
+        return True
     
         
     def analizar(self, df_tickers, window=60):
@@ -1085,7 +1019,7 @@ if __name__ == '__main__':
     #######################################################################
     
     # 1.- Total score por encima de 1 --> BUY 
-    df_compra = df_final[df_final["Score_total"] > 1.0]
+    df_compra = df_final[df_final["Score_total"] > 0.5]
     
     for _, fila in df_compra.iterrows():
         ticker = fila["Ticker"]
@@ -1093,27 +1027,13 @@ if __name__ == '__main__':
         print(f"🟢 Evaluando la compra de {ticker} (Score={score:.2f})")
         objEstra.comprar(ticker)
 
-    
-    # 2.- TotalScore entre 0,5 y 1 confirmacion tecnica
-    df_analizar = df_final[(df_final["Score_total"] > 0.5) & (df_final["Score_total"] < 1.0)]
-    
-    df_compra = objEstra.analizar(df_analizar)
-
-    if df_compra.empty:
-        print(f"⚠️ Sin buenas inversiones tras analisis 0.5 to 1.")
-    else:
-        for _, fila in df_compra.iterrows():
-            ticker = fila["Ticker"]
-            score = fila["Score_total"]
-            print(f"🟢 Evaluando la compra de {ticker} (Score={score:.2f})")
-            objEstra.comprar(ticker)
 
 
     #######################################################################
     #  Decision de VENTA
     #######################################################################
 
-
+    objEstra.vender_con_estrategia()
 
 
     if DEBUG__:

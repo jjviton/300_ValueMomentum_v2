@@ -49,7 +49,7 @@ Author: J3Viton
 
 """
 
-DEBUG__ = True #False  #variable global (global J3_DEBUG__ )
+DEBUG__ = False  #variable global (global J3_DEBUG__ )
 
 
 ################################ IMPORTAMOS MODULOS A UTILIZAR.
@@ -450,7 +450,7 @@ class valueMomentumClass:
     
     def vender(self, ticker):
         # Aquí pondrías tu lógica real de compra, API o simulación
-        print(f"Ejecutando VENTA de {ticker}")
+        print(f"Evaluanado VENTA de {ticker}")
         
         # Compruebo la tendencia  BAJISTA   ADX >25  SMA20>SMA50
         if (not self.analizar_tendencia_DOWN(ticker)):
@@ -937,7 +937,7 @@ class valueMomentumClass:
         plt.figure(figsize=(10,6))
         plt.barh(top_df["Ticker"], top_df["Score_total"], color="dodgerblue", alpha=0.8)
         # Línea vertical roja en x=1
-        plt.axvline(x=1, color="red", linestyle="--", linewidth=2, label="Umbral Score=1")
+        plt.axvline(x=0.6, color="green", linestyle="--", linewidth=2, label="Umbral Score=1")
         
         plt.xlabel("Score Total (Value + Momentum)")
         plt.title(f"Top {top_n} acciones según Score_total")

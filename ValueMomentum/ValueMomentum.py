@@ -278,13 +278,16 @@ class valueMomentumClass:
             return None
     
         # 6️⃣ Normalización (z-score inverso)
+        #   Convierte a misma escala por COLUMNA, nos dice lo lejos que está de la media. Z=0 valor en la media 
         z_scores = df[ratios].apply(lambda x: -(x - np.nanmean(x)) / np.nanstd(x))
     
         # 7️⃣ Calcular Composite Value y z-score final
+        #   Normaliza los inidcadores para cada valor por FILA
         df["Composite Value"] = z_scores.mean(axis=1)
+        #   Normaliza por columnas los valores de todos los marcadores
         df["Composite_z"] = (df["Composite Value"] - df["Composite Value"].mean()) / df["Composite Value"].std()
     
-        # 8️⃣ Ranking final
+        # 8️⃣ Ranking final. despues de tomar dos indicadores, normalizar y ordenar.
         df["Ranking"] = df["Composite Value"].rank(ascending=False)
         df.sort_values("Composite Value", ascending=False, inplace=True)
         df.reset_index(drop=True, inplace=True)
@@ -408,7 +411,7 @@ class valueMomentumClass:
             print("⚠️ Ningún ticker con momentum válido.")
             return None
 
-        # 4️⃣ Normalizar pendientes (z-score)
+        # 4️⃣ Normalizar pendientes (z-score) por columna
         df_mom["Momentum_z"] = (df_mom["Momentum_beta"] - df_mom["Momentum_beta"].mean()) / df_mom["Momentum_beta"].std()
 
         # 5️⃣ Ordenar por momentum
@@ -1039,10 +1042,14 @@ if __name__ == '__main__':
     if DEBUG__:
         import keyboard
         print("Pulsa una tecla para finalizar ")
+
         tecla = keyboard.read_key()
     
     
+
     print('✅✅ This is it................ 1')
+    logging.warning('Paso por ValueMomentum, esto es una migita FIN ')
+    sys.exit(32)
 
     
     """

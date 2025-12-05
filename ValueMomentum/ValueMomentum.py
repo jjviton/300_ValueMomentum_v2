@@ -506,6 +506,7 @@ class valueMomentumClass:
             data["ADX"] = adx_indicator.adx()
     
             # 4️⃣ Tomar los últimos valores
+
             sma20 = data["SMA20"].iloc[-1]
             sma50 = data["SMA50"].iloc[-1]
             adx = data["ADX"].iloc[-1]

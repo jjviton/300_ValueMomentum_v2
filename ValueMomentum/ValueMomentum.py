@@ -983,7 +983,11 @@ if __name__ == '__main__':
         sys.exit()
     """
     
+    from telegram_bot import *
+
+    
     objEstra =valueMomentumClass("AMZN")
+    send_message("Procesosna ValueMomentum")
 
     
     print(f"PER de {objEstra.ticker}", objEstra.obtener_per(objEstra.ticker))

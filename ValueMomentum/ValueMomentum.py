@@ -8,7 +8,7 @@
 Programa para un estrategia robusta y basica
 OBEJTIVO: tener algo consistente que me anime en otras estrategias mas arriesgadas
 
-
+verion para Defensa
 ******************************************************************************
 ******************************************************************************
 
@@ -49,7 +49,7 @@ Author: J3Viton
 
 """
 
-DEBUG__ = False  #variable global (global J3_DEBUG__ )
+DEBUG__ = True  #variable global (global J3_DEBUG__ )
 
 
 ################################ IMPORTAMOS MODULOS A UTILIZAR.
@@ -62,7 +62,7 @@ import yfinance as yf
 ################################# ENTORNO
 import sys
 sys.path.insert(0,"C:\\Users\\jjjimenez\\Documents\\quant\\libreria")
-from sp500 import tickers_financials
+from sp500 import tickers_financials, defense_tickers
 
 
 ####################### LOGGING
@@ -158,7 +158,13 @@ class valueMomentumClass:
                    "P/B": info.get("priceToBook", np.nan),
                    "EV/EBITDA": info.get("enterpriseToEbitda", np.nan),
                    "P/S": info.get("priceToSalesTrailing12Months", np.nan),
-                   "Sector": info.get("sector", "Unknown")
+                   "Sector": info.get("sector", "Unknown"),
+                   
+
+                   "Forward_PE": info.get("forwardPE", np.nan),
+                   "ebitda_ltm": info.get("ebitda", np.nan),
+                   "FCF": info.get("freeCashflow", np.nan)
+                   
                })
            except Exception as e:
                print(f"Error con {t}: {e}")
@@ -211,7 +217,7 @@ class valueMomentumClass:
        return df[["Ticker", "Sector", "P/E", "P/B", "EV/EBITDA", "P/S",
                    "Composite Value", "Composite_z", "Ranking"]]
     
-    def obtener_composite_value_tickers(self, tickers, sector='fin'):
+    def obtener_composite_value_tickerskk(self, tickers, sector='fin'):
         """
         Calcula el Composite Value (promedio normalizado de ratios de valoración) 
         para una lista de tickers. 
@@ -356,7 +362,6 @@ class valueMomentumClass:
         """
         Calcula el momentum (pendiente de la regresión del log-precio sobre la SMA)
         para una lista de tickers. Devuelve un DataFrame con las pendientes normalizadas (z-score).
-
         Parámetros:
         -----------
         tickers : list[str]
@@ -998,6 +1003,7 @@ if __name__ == '__main__':
     
     
     tickers=  tickers_financials
+    #tickers= defense_tickers
     df_val = objEstra.obtener_composite_value_tickers(tickers, sector='fin')
     
     #df_mom = objEstra.obtener_momentum_log(tickers, period=252)  # semestral

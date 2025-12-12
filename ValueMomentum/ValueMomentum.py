@@ -135,88 +135,304 @@ class valueMomentumClass:
         return info.get("trailingPE", "PER no disponible")
     
 
-    def obtener_composite_value_tickers(self, tickers, sector ='fin'):
-       """
-       Calcula el Composite Value (promedio normalizado de ratios de valoración) 
-       para una lista de tickers.
-       Aplica filtros absolutos para evitar que acciones 'caras' distorsionen el ranking.
-       Devuelve un DataFrame ordenado (menor valor = más barata).
-       """
-       import pandas as pd
-       import numpy as np
-       import yfinance as yf
-
-       data = []
-
-       # 1️⃣ Descargar datos de Yahoo Finance
-       for t in tickers:
-           try:
-               info = yf.Ticker(t).get_info()
-               data.append({
-                   "Ticker": t,
-                   "P/E": info.get("trailingPE", np.nan),
-                   "P/B": info.get("priceToBook", np.nan),
-                   "EV/EBITDA": info.get("enterpriseToEbitda", np.nan),
-                   "P/S": info.get("priceToSalesTrailing12Months", np.nan),
-                   "Sector": info.get("sector", "Unknown"),
-                   
-
-                   "Forward_PE": info.get("forwardPE", np.nan),
-                   "ebitda_ltm": info.get("ebitda", np.nan),
-                   "FCF": info.get("freeCashflow", np.nan)
-                   
-               })
-           except Exception as e:
-               print(f"Error con {t}: {e}")
-
-       df = pd.DataFrame(data)
-
-       # 2️⃣ Limpieza de datos
-       for col in ["P/E", "P/B"]:  #, "EV/EBITDA", "P/S"]:
-           df[col] = pd.to_numeric(df[col], errors="coerce")
-
-       # 3️⃣ Filtros absolutos (descarta extremos)
-       df = df.loc[
-           (df["P/E"] > 8) & (df["P/E"] < 20) &
-           (df["P/B"] > 0.8) & (df["P/B"] < 2) 
-       ].copy()
-       
-       """&
-       (df["EV/EBITDA"] > -99999) & (df["EV/EBITDA"] < 999999930) &
-       (df["P/S"] > -9999990) & (df["P/S"] < 99999910)"""
-
-
-
-       if df.empty:
-           print("⚠️ Ninguna acción pasa los filtros absolutos.")
-           return None
-
-       # 4️⃣ Normalización (z-score inverso) por columnas
-       z_scores = df[["P/E", "P/B" ]].apply(       
-           lambda x: -(x - np.nanmean(x)) / np.nanstd(x)
-       )
-       
-       """, "EV/EBITDA", "P/S" """
-
-       # 5️⃣ Calcular Composite Value (media de z-scores)  por fila
-       df["Composite Value"] = z_scores.mean(axis=1)
-       # 6️⃣ Calcular Composite_z (z-score del Composite Value)
-       df["Composite_z"] = (df["Composite Value"] - df["Composite Value"].mean()) / df["Composite Value"].std()
-       # J· repasar este calculo de arriba, no me cuadra
-
-       # 6️⃣ Ranking final
-       df["Ranking"] = df["Composite Value"].rank(ascending=False)
-       df.sort_values("Composite Value", ascending=False, inplace=True)
-       df.reset_index(drop=True, inplace=True)
-       # 7️⃣ Ranking final
-       
-       #df["Ranking"] = df["Composite Value"].rank(ascending=False)
-       #df.sort_values("Composite Value", ascending=False, inplace=True)
-       #df.reset_index(drop=True, inplace=True)
-        
-       return df[["Ticker", "Sector", "P/E", "P/B", "EV/EBITDA", "P/S",
-                   "Composite Value", "Composite_z", "Ranking"]]
+      
     
+    def obtener_composite_value_tickers(self, tickers, sector='defensa'):
+        """
+        Calcula un Composite Value adaptado a empresas de defensa (Aerospace & Defense):
+          - EV/EBITDA (LTM)
+          - FCF Yield (LTM)
+          - Forward P/E
+          - P/B
+          - Dividend Yield (opcional)
+          - Net Debt/EBITDA (opcional si hay datos)
+        Devuelve un DataFrame ordenado (Composite Value alto = más "barata"/atractiva en value).
+        """
+    
+        import math
+        import numpy as np
+        import pandas as pd
+        import yfinance as yf
+    
+        # ----------------------------
+        # Helpers
+        # ----------------------------
+        def to_float(x):
+            try:
+                if x is None or (isinstance(x, float) and np.isnan(x)):
+                    return np.nan
+                return float(x)
+            except Exception:
+                return np.nan
+    
+        def safe_div(a, b):
+            try:
+                if b is None or pd.isna(b) or b == 0:
+                    return np.nan
+                return a / b
+            except Exception:
+                return np.nan
+    
+        def pick_first_key(df_index, candidates):
+            """Devuelve la primera clave encontrada en el índice de un DataFrame."""
+            for k in candidates:
+                if k in df_index:
+                    return k
+            return None
+    
+        def winsorize_series(s, low=0.05, high=0.95):
+            s = s.astype(float)
+            q_low, q_high = s.quantile([low, high])
+            return s.clip(q_low, q_high)
+    
+        # ----------------------------
+        # Cálculos financieros (LTM)
+        # ----------------------------
+        def get_basic_info(t: yf.Ticker) -> dict:
+            out = {}
+            # fast_info: market cap/price si está disponible
+            try:
+                fi = t.fast_info
+                out["market_cap"] = to_float(getattr(fi, "market_cap", np.nan))
+                out["last_price"] = to_float(getattr(fi, "last_price", np.nan))
+                out["shares"] = to_float(getattr(fi, "shares", np.nan))
+            except Exception:
+                pass
+            # info: EV, P/E, P/B, dividend yield, sector/industry
+            try:
+                info = t.get_info()
+                out["trailing_pe"] = to_float(info.get("trailingPE"))
+                out["forward_pe"]  = to_float(info.get("forwardPE"))
+                out["price_to_book"] = to_float(info.get("priceToBook"))
+                out["dividend_yield"] = to_float(info.get("dividendYield"))  # fracción (0.02 = 2%)
+                out["enterprise_value"] = to_float(info.get("enterpriseValue"))
+                out["sector"] = info.get("sector", None)
+                out["industry"] = info.get("industry", None)
+                if pd.isna(out.get("market_cap")):
+                    out["market_cap"] = to_float(info.get("marketCap"))
+            except Exception:
+                pass
+            return out
+    
+        def get_ebitda_ltm(t: yf.Ticker) -> float:
+            """EBITDA LTM sumando últimos 4 trimestres; si falta, usa último anual."""
+            ebitda = np.nan
+            try:
+                inc_q = t.get_income_stmt(freq="quarterly")
+                if isinstance(inc_q, pd.DataFrame) and not inc_q.empty:
+                    key = pick_first_key(inc_q.index, {"EBITDA", "Ebitda"})
+                    if key:
+                        ebitda = to_float(inc_q.loc[key].iloc[:4].sum())
+            except Exception:
+                pass
+            if pd.isna(ebitda):
+                try:
+                    inc_a = t.get_income_stmt(freq="annual")
+                    if isinstance(inc_a, pd.DataFrame) and not inc_a.empty:
+                        key = pick_first_key(inc_a.index, {"EBITDA", "Ebitda"})
+                        if key:
+                            ebitda = to_float(inc_a.loc[key].iloc[0])
+                except Exception:
+                    pass
+            return ebitda
+    
+        def get_fcf_ltm(t: yf.Ticker) -> float:
+            """FCF LTM = Operating Cash Flow - CapEx (4 últimos trimestres o último anual)."""
+            ocf_keys = {"Operating Cash Flow", "Total Cash From Operating Activities", "OperatingCashFlow"}
+            capex_keys = {"Capital Expenditures", "CapitalExpenditures"}
+    
+            ocf, capex = np.nan, np.nan
+            # Trimestral
+            try:
+                cf_q = t.get_cashflow(freq="quarterly")
+                if isinstance(cf_q, pd.DataFrame) and not cf_q.empty:
+                    ocf_key = pick_first_key(cf_q.index, ocf_keys)
+                    capex_key = pick_first_key(cf_q.index, capex_keys)
+                    if ocf_key and capex_key:
+                        ocf = to_float(cf_q.loc[ocf_key].iloc[:4].sum())
+                        capex = to_float(cf_q.loc[capex_key].iloc[:4].sum())
+            except Exception:
+                pass
+            # Anual si falta
+            if pd.isna(ocf) or pd.isna(capex):
+                try:
+                    cf_a = t.get_cashflow(freq="annual")
+                    if isinstance(cf_a, pd.DataFrame) and not cf_a.empty:
+                        ocf_key = pick_first_key(cf_a.index, ocf_keys)
+                        capex_key = pick_first_key(cf_a.index, capex_keys)
+                        if ocf_key and capex_key:
+                            ocf = to_float(cf_a.loc[ocf_key].iloc[0])
+                            capex = to_float(cf_a.loc[capex_key].iloc[0])
+                except Exception:
+                    pass
+    
+            if pd.isna(ocf) or pd.isna(capex):
+                return np.nan
+            # CapEx suele estar negativo; restamos su valor absoluto para obtener gasto
+            return ocf - abs(capex)
+    
+        def get_net_debt_ebitda(t: yf.Ticker, ebitda_ltm: float) -> float:
+            """Net Debt / EBITDA (opcional). Si faltan datos, devuelve NaN."""
+            if pd.isna(ebitda_ltm) or ebitda_ltm == 0:
+                return np.nan
+            try:
+                bs_q = t.get_balance_sheet(freq="quarterly")
+                if isinstance(bs_q, pd.DataFrame) and not bs_q.empty:
+                    # Intento robusto: Total Debt o suma de Short+Long Term Debt
+                    debt_key = pick_first_key(bs_q.index, {
+                        "Total Debt", "TotalDebt", "Short Long Term Debt", "Long Term Debt",
+                        "ShortLongTermDebt", "LongTermDebt"
+                    })
+                    cash_key = pick_first_key(bs_q.index, {
+                        "Cash And Cash Equivalents", "Cash", "CashAndCashEquivalents"
+                    })
+                    total_debt = np.nan
+                    if debt_key:
+                        total_debt = to_float(bs_q.loc[debt_key].iloc[0])
+                    else:
+                        # Suma de corto+largo si existen
+                        short_k = pick_first_key(bs_q.index, {"Short Long Term Debt", "ShortLongTermDebt"})
+                        long_k  = pick_first_key(bs_q.index, {"Long Term Debt", "LongTermDebt"})
+                        total_debt = 0.0
+                        if short_k:
+                            total_debt += to_float(bs_q.loc[short_k].iloc[0])
+                        if long_k:
+                            total_debt += to_float(bs_q.loc[long_k].iloc[0])
+                        if total_debt == 0.0:
+                            total_debt = np.nan
+                    cash = to_float(bs_q.loc[cash_key].iloc[0]) if cash_key else np.nan
+                    if pd.isna(total_debt) or pd.isna(cash):
+                        return np.nan
+                    net_debt = total_debt - cash
+                    return safe_div(net_debt, ebitda_ltm)
+            except Exception:
+                return np.nan
+            return np.nan
+    
+        # ----------------------------
+        # Extracción por ticker
+        # ----------------------------
+        rows = []
+        for tkr in tickers:
+            try:
+                t = yf.Ticker(tkr)
+                bi = get_basic_info(t)
+                ebitda_ltm = get_ebitda_ltm(t)
+                fcf_ltm    = get_fcf_ltm(t)
+    
+                ev = bi.get("enterprise_value")
+                mc = bi.get("market_cap")
+    
+                ev_ebitda = safe_div(ev, ebitda_ltm)
+                fcf_yield = safe_div(fcf_ltm, mc)
+    
+                nd_ebitda = get_net_debt_ebitda(t, ebitda_ltm)
+    
+                rows.append({
+                    "Ticker": tkr,
+                    "Sector": bi.get("sector") or "Unknown",
+                    "Industry": bi.get("industry") or "Unknown",
+                    "EV": ev,
+                    "MarketCap": mc,
+                    "EBITDA_LTM": ebitda_ltm,
+                    "FCF_LTM": fcf_ltm,
+                    "EV/EBITDA": ev_ebitda,
+                    "FCF_Yield": fcf_yield,             # fracción: 0.05 = 5%
+                    "Forward_PE": bi.get("forward_pe"),
+                    "P/B": bi.get("price_to_book"),
+                    "Dividend_Yield": bi.get("dividend_yield"),  # fracción
+                    "NetDebt_EBITDA": nd_ebitda
+                })
+            except Exception as e:
+                print(f"Error con {tkr}: {e}")
+    
+        df = pd.DataFrame(rows)
+    
+        # ----------------------------
+        # Filtro opcional por sector defensa
+        # ----------------------------
+        if sector and sector.lower().startswith("def"):
+            # Nos quedamos con 'Aerospace & Defense' si aparece; si no, mantenemos todos.
+            mask_def = df["Industry"].fillna("").str.contains("Aerospace", case=False) & \
+                       df["Industry"].fillna("").str.contains("Defense", case=False)
+            if mask_def.any():
+                df = df.loc[mask_def].copy()
+    
+        # ----------------------------
+        # Conversión a numérico y limpieza
+        # ----------------------------
+        num_cols = ["EV/EBITDA", "FCF_Yield", "Forward_PE", "P/B", "Dividend_Yield", "NetDebt_EBITDA"]
+        for col in num_cols:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+    
+        # Requisitos mínimos: EV/EBITDA y FCF_Yield disponibles
+        df = df.dropna(subset=["EV/EBITDA", "FCF_Yield"]).copy()
+        if df.empty:
+            print("⚠️ Ninguna acción con datos suficientes (EV/EBITDA y FCF Yield).")
+            return None
+    
+        # ----------------------------
+        # Winsorización (5–95%) para reducir outliers
+        # ----------------------------
+        for col in ["EV/EBITDA", "FCF_Yield", "Forward_PE", "P/B", "Dividend_Yield", "NetDebt_EBITDA"]:
+            if col in df.columns:
+                df[col] = winsorize_series(df[col], low=0.05, high=0.95)
+    
+        # ----------------------------
+        # Z-scores con signos correctos
+        #   - Ratios "más bajo es mejor": EV/EBITDA, Forward_PE, P/B, NetDebt/EBITDA → invertidos (-z)
+        #   - Yields "más alto es mejor": FCF_Yield, Dividend_Yield → z directo
+        # ----------------------------
+        def zscore(series):
+            mu, sigma = series.mean(), series.std(ddof=1)
+            if sigma is None or sigma == 0 or pd.isna(sigma):
+                return pd.Series(np.zeros(len(series)), index=series.index)
+            return (series - mu) / sigma
+    
+        z_ev_ebitda   = -zscore(df["EV/EBITDA"])
+        z_forward_pe  = -zscore(df["Forward_PE"])      if df["Forward_PE"].notna().any() else 0.0
+        z_pb          = -zscore(df["P/B"])             if df["P/B"].notna().any()        else 0.0
+        z_nd_ebitda   = -zscore(df["NetDebt_EBITDA"])  if df["NetDebt_EBITDA"].notna().any() else 0.0
+        z_fcf_yield   =  zscore(df["FCF_Yield"])
+        z_div_yield   =  zscore(df["Dividend_Yield"])  if df["Dividend_Yield"].notna().any() else 0.0
+    
+        # Puedes ponderar; aquí ponderamos más EV/EBITDA y FCF Yield
+        df["Composite Value"] = (
+            0.35 * z_ev_ebitda +
+            0.35 * z_fcf_yield +
+            0.10 * z_forward_pe +
+            0.10 * z_pb +
+            0.05 * z_div_yield +
+            0.05 * z_nd_ebitda
+        )
+    
+        # Z-score del composite (para interpretar en desviaciones estándar)
+        comp_mu, comp_sigma = df["Composite Value"].mean(), df["Composite Value"].std(ddof=1)
+        df["Composite_z"] = (df["Composite Value"] - comp_mu) / (comp_sigma if comp_sigma else 1.0)
+    
+        # Ranking final (mayor composite = mejor value)
+        df["Ranking"] = df["Composite Value"].rank(ascending=False, method="dense")
+        df = df.sort_values("Composite Value", ascending=False).reset_index(drop=True)
+    
+        # Selección de columnas finales
+        cols_out = [
+            "Ticker", "Sector", "Industry",
+            "EV", "MarketCap", "EBITDA_LTM", "FCF_LTM",
+            "EV/EBITDA", "FCF_Yield", "Forward_PE", "P/B", "Dividend_Yield", "NetDebt_EBITDA",
+            "Composite Value", "Composite_z", "Ranking"
+        ]
+        for c in cols_out:
+            if c not in df.columns:
+                df[c] = np.nan
+    
+        return df[cols_out]
+    
+    
+    
+    
+
+
+
     def obtener_composite_value_tickerskk(self, tickers, sector='fin'):
         """
         Calcula el Composite Value (promedio normalizado de ratios de valoración) 
@@ -979,6 +1195,7 @@ if __name__ == '__main__':
     """   
 
     print ('version(J): ',versionVersion) 
+    print (' DEFENSE flavour') 
 
     """
     print(sys.argv[1])   #se configura en 'run' 'configuration per file'
@@ -1002,8 +1219,8 @@ if __name__ == '__main__':
     #objEstra.backtest(tickers, start="2015-01-01", end="2025-01-01", score_threshold=1.0, atr_mult=2)
     
     
-    tickers=  tickers_financials
-    #tickers= defense_tickers
+    #tickers=  tickers_financials
+    tickers= defense_tickers
     df_val = objEstra.obtener_composite_value_tickers(tickers, sector='fin')
     
     #df_mom = objEstra.obtener_momentum_log(tickers, period=252)  # semestral

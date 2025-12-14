@@ -5,6 +5,8 @@
 *****************************************************************************
 .PY
 
+FIANNACIAL
+
 Programa para un estrategia robusta y basica
 OBEJTIVO: tener algo consistente que me anime en otras estrategias mas arriesgadas
 

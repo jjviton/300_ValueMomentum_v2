@@ -49,7 +49,7 @@ Author: J3Viton
 
 """
 
-DEBUG__ = True  #variable global (global J3_DEBUG__ )
+DEBUG__ = False  #variable global (global J3_DEBUG__ )
 
 
 ################################ IMPORTAMOS MODULOS A UTILIZAR.
@@ -239,7 +239,7 @@ class valueMomentumClass:
         def get_fcf_ltm(t: yf.Ticker) -> float:
             """FCF LTM = Operating Cash Flow - CapEx (4 últimos trimestres o último anual)."""
             ocf_keys = {"Operating Cash Flow", "Total Cash From Operating Activities", "OperatingCashFlow"}
-            capex_keys = {"Capital Expenditures", "CapitalExpenditures"}
+            capex_keys = {"Capital Expenditures", "CapitalExpenditures","CapitalExpenditure"}
     
             ocf, capex = np.nan, np.nan
             # Trimestral
@@ -656,11 +656,8 @@ class valueMomentumClass:
         sys.path.append("C:\\Users\\jjjimenez\\Documents\\quant\\999_Automatic\\999_Automatic")
         automatic = importlib.import_module("automatic", "C:\\Users\\jjjimenez\\Documents\\quant\\999_Automatic\\999_Automatic")
         
-        #COMPRUEBO LA TENDENCIA ALCISTA
-        if( self.analizar_tendencia_UP(ticker)):
-            return False
 
-        alpacaAPI= automatic.tradeAPIClass(para2=automatic.CUENTA_J3_01) 
+        alpacaAPI= automatic.tradeAPIClass(para2=automatic.CUENTA_J3_02) 
         
         cantidad = alpacaAPI.positionExist(ticker)
         
@@ -686,7 +683,7 @@ class valueMomentumClass:
         sys.path.append("C:\\Users\\jjjimenez\\Documents\\quant\\999_Automatic\\999_Automatic")
         automatic = importlib.import_module("automatic", "C:\\Users\\jjjimenez\\Documents\\quant\\999_Automatic\\999_Automatic")
 
-        alpacaAPI= automatic.tradeAPIClass(para2=automatic.CUENTA_J3_01) 
+        alpacaAPI= automatic.tradeAPIClass(para2=automatic.CUENTA_J3_02) 
         
         #ticker= 'LNC'
         alpacaAPI.placeOrderSell(ticker,1)        
@@ -813,7 +810,7 @@ class valueMomentumClass:
         automatic = importlib.import_module("automatic", "C:\\Users\\jjjimenez\\Documents\\quant\\999_Automatic\\999_Automatic")
 
 
-        alpacaAPI= automatic.tradeAPIClass(para2=automatic.CUENTA_J3_01) 
+        alpacaAPI= automatic.tradeAPIClass(para2=automatic.CUENTA_J3_02) 
         
         # 1️⃣ Obtener las posiciones abiertas desde Alpaca
         posiciones = alpacaAPI.get_positions()

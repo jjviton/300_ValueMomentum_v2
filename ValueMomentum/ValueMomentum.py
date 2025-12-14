@@ -442,9 +442,7 @@ class valueMomentumClass:
         sys.path.append("C:\\Users\\jjjimenez\\Documents\\quant\\999_Automatic\\999_Automatic")
         automatic = importlib.import_module("automatic", "C:\\Users\\jjjimenez\\Documents\\quant\\999_Automatic\\999_Automatic")
         
-        #COMPRUEBO LA TENDENCIA ALCISTA
-        if( self.analizar_tendencia_UP(ticker)):
-            return False
+
 
         alpacaAPI= automatic.tradeAPIClass(para2=automatic.CUENTA_J3_01) 
         

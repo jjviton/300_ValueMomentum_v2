@@ -49,7 +49,7 @@ Author: J3Viton
 
 """
 
-DEBUG__ = False  #variable global (global J3_DEBUG__ )
+DEBUG__ = True  #variable global (global J3_DEBUG__ )
 
 
 ################################ IMPORTAMOS MODULOS A UTILIZAR.
@@ -315,6 +315,9 @@ class valueMomentumClass:
         rows = []
         for tkr in tickers:
             try:
+                if tkr=='CACI': 
+                    i=8
+                    
                 t = yf.Ticker(tkr)
                 bi = get_basic_info(t)
                 ebitda_ltm = get_ebitda_ltm(t)
@@ -378,25 +381,60 @@ class valueMomentumClass:
             if col in df.columns:
                 df[col] = winsorize_series(df[col], low=0.05, high=0.95)
     
+            import numpy as np
+            import pandas as pd
+            
         # ----------------------------
-        # Z-scores con signos correctos
+        # Z-scores robustos con signos correctos
         #   - Ratios "más bajo es mejor": EV/EBITDA, Forward_PE, P/B, NetDebt/EBITDA → invertidos (-z)
         #   - Yields "más alto es mejor": FCF_Yield, Dividend_Yield → z directo
         # ----------------------------
-        def zscore(series):
-            mu, sigma = series.mean(), series.std(ddof=1)
-            if sigma is None or sigma == 0 or pd.isna(sigma):
-                return pd.Series(np.zeros(len(series)), index=series.index)
-            return (series - mu) / sigma
-    
-        z_ev_ebitda   = -zscore(df["EV/EBITDA"])
-        z_forward_pe  = -zscore(df["Forward_PE"])      if df["Forward_PE"].notna().any() else 0.0
-        z_pb          = -zscore(df["P/B"])             if df["P/B"].notna().any()        else 0.0
-        z_nd_ebitda   = -zscore(df["NetDebt_EBITDA"])  if df["NetDebt_EBITDA"].notna().any() else 0.0
-        z_fcf_yield   =  zscore(df["FCF_Yield"])
-        z_div_yield   =  zscore(df["Dividend_Yield"])  if df["Dividend_Yield"].notna().any() else 0.0
-    
-        # Puedes ponderar; aquí ponderamos más EV/EBITDA y FCF Yield
+        
+        def safe_zscore(series, invert=False):
+            """
+            Calcula z-score ignorando NaNs. Si std == 0 o no hay datos válidos, devuelve 0s.
+            El resultado tiene el mismo índice que la serie original.
+            NaNs en la entrada se mantienen como NaN inicialmente, luego se rellenan con 0.0.
+            """
+            # Trabaja con copia para no alterar original
+            series = series.copy()
+            
+            # Si toda la serie es NaN o vacía
+            valid = series.dropna()
+            if len(valid) == 0:
+                result = pd.Series(np.zeros(len(series)), index=series.index)
+                return -result if invert else result
+        
+            mu = valid.mean()
+            sigma = valid.std(ddof=1)
+        
+            # Si desviación estándar es cero (todos iguales), asignar 0 en todos los valores válidos
+            if sigma == 0 or pd.isna(sigma):
+                result = pd.Series(np.zeros(len(series)), index=series.index)
+                result.loc[series.notna()] = 0.0
+            else:
+                # Calcular z-score solo en valores válidos
+                result = pd.Series(np.nan, index=series.index)
+                result.loc[series.notna()] = (valid - mu) / sigma
+        
+            # Aplicar inversión si corresponde
+            if invert:
+                result = -result
+        
+            # Rellenar NaN (donde no había dato) con 0.0 → "neutral"
+            result = result.fillna(0.0)
+            
+            return result
+        
+        # Aplicar z-scores con manejo robusto
+        z_ev_ebitda   = safe_zscore(df["EV/EBITDA"],   invert=True)
+        z_forward_pe  = safe_zscore(df["Forward_PE"],  invert=True)
+        z_pb          = safe_zscore(df["P/B"],         invert=True)
+        z_nd_ebitda   = safe_zscore(df["NetDebt_EBITDA"], invert=True)
+        z_fcf_yield   = safe_zscore(df["FCF_Yield"],   invert=False)
+        z_div_yield   = safe_zscore(df["Dividend_Yield"], invert=False)
+        
+        # Calcular puntuación compuesta (ya no hay NaNs)
         df["Composite Value"] = (
             0.35 * z_ev_ebitda +
             0.35 * z_fcf_yield +
@@ -404,7 +442,9 @@ class valueMomentumClass:
             0.10 * z_pb +
             0.05 * z_div_yield +
             0.05 * z_nd_ebitda
-        )
+        )      
+    
+    
     
         # Z-score del composite (para interpretar en desviaciones estándar)
         comp_mu, comp_sigma = df["Composite Value"].mean(), df["Composite Value"].std(ddof=1)
@@ -1159,7 +1199,7 @@ class valueMomentumClass:
         plt.figure(figsize=(10,6))
         plt.barh(top_df["Ticker"], top_df["Score_total"], color="dodgerblue", alpha=0.8)
         # Línea vertical roja en x=1
-        plt.axvline(x=0.6, color="green", linestyle="--", linewidth=2, label="Umbral Score=1")
+        plt.axvline(x=0.5, color="green", linestyle="--", linewidth=2, label="Umbral Score=1")
         
         plt.xlabel("Score Total (Value + Momentum)")
         plt.title(f"Top {top_n} acciones según Score_total")
@@ -1218,12 +1258,15 @@ if __name__ == '__main__':
     
     #tickers=  tickers_financials
     tickers= defense_tickers
+    
+
     df_val = objEstra.obtener_composite_value_tickers(tickers, sector='fin')
     
     #df_mom = objEstra.obtener_momentum_log(tickers, period=252)  # semestral
     df_mom = objEstra.calcular_momentum_regresion_tickers(tickers)
     
      # Fusionar ambos DataFrames
+
     df_final = pd.merge(df_val, df_mom, on="Ticker", how="inner")
     
     # Calcular score total combinado (igual peso)

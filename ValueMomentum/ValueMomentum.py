@@ -71,7 +71,7 @@ for handler in logging.root.handlers[:]:
     logging.root.removeHandler(handler)
 logging.basicConfig(filename='../log/registro.log', level=logging.INFO ,force=True,
                     format='%(asctime)s:%(levelname)s:%(message)s')
-logging.warning('Paso por ValueMomentum, esto es una migita')
+logging.warning('Paso por ValueMomentum, esto es una migita DEFENSA')
 
 #### Variables globales  (refereniarlas con 'global' desde el codigo
 versionVersion = 0.1

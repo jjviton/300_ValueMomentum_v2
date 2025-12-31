@@ -703,11 +703,35 @@ class valueMomentumClass:
         
         #Compruebo que no estoy 'comprado'
         if (cantidad == 0):
+            
+            resultado = self.calcula_ATR(ticker)
+            numAcciones = int( self.moneyManagement (ticker, resultado['ATR'],100000, alpacaAPI.getCash()))   #100000 es el equity de la cuenta
+            
             orderID= alpacaAPI.placeOrder(ticker, 1)
+            
         else:
             print(f"⚠️🔴 {ticker}: Ya estamos comprados .")
             
         return "ok"
+
+    def moneyManagement(self, ticker, _atr, _equity, _cash):
+        """
+        La fucnion de gestion del dinero funciona de la siguiente manera:
+            
+            Ejemplo: Equity = 100.000 €, riesgo/trade 0,5% = 500 €.
+            ATR(14) = 2,00 €; eliges stop a 2× ATR = 4 € por acción.
+            Tamaño = 500 € / 4 € = 125 acciones.
+        """
+        _riesgo =  0.005
+        if ((_equity *_riesgo) < _cash):
+            numAcc= (_equity * 0.005)/(_atr*3)
+            return(numAcc)
+            
+        else:
+            return 0
+        
+        
+        
     
     def vender(self, ticker):
         # Aquí pondrías tu lógica real de compra, API o simulación
@@ -761,7 +785,7 @@ class valueMomentumClass:
     
             # 3️⃣ Calcular ADX
             adx_indicator = ta.trend.ADXIndicator(high=data["High"], low=data["Low"], close=data["Close"], window=14)
-            data["ADX"] = adx_indicator.adx()
+            data["ADX"] = adx_indicator.adx_neg()
     
             # 4️⃣ Tomar los últimos valores
 
@@ -809,7 +833,7 @@ class valueMomentumClass:
     
             # 3️⃣ Calcular ADX
             adx_indicator = ta.trend.ADXIndicator(high=data["High"], low=data["Low"], close=data["Close"], window=14)
-            data["ADX"] = adx_indicator.adx()
+            data["ADX"] = adx_indicator.adx_pos()
     
             # 4️⃣ Tomar los últimos valores
             sma20 = data["SMA20"].iloc[-1]
@@ -827,6 +851,65 @@ class valueMomentumClass:
             print(f"Error al analizar {ticker}: {e}")
             return False
         return False
+
+
+
+    def calcula_ATR(self, ticker):
+        import yfinance as yf
+        import pandas as pd
+        from ta.volatility import AverageTrueRange
+        from ta.trend import ADXIndicator
+        from datetime import datetime, timedelta
+    
+        # Configurar rango de fechas (últimos 60 días para asegurar suficientes datos)
+        end = datetime.today().strftime('%Y-%m-%d')
+        start = (datetime.today() - timedelta(days=60)).strftime('%Y-%m-%d')
+    
+        # Descargar datos
+        data = yf.download(ticker, start=start, end=end, progress=False, auto_adjust=True)
+        data.columns = data.columns.droplevel(1)
+    
+        if data.empty:
+            raise ValueError(f"No se pudieron descargar datos para el ticker: {ticker}")
+    
+        # Asegurarse de que el índice es datetime y los datos están ordenados
+        data = data.sort_index()
+    
+        # Calcular ATR(14)
+        atr = AverageTrueRange(
+            high=data['High'],
+            low=data['Low'],
+            close=data['Close'],
+            window=14
+        )
+        data['ATR'] = atr.average_true_range()
+    
+        # Calcular ADX(14)
+        adx = ADXIndicator(
+            high=data['High'],
+            low=data['Low'],
+            close=data['Close'],
+            window=14
+        )
+        data['ADX'] = adx.adx()
+        data['DMP'] = adx.adx_pos()  # +DI
+        data['DMN'] = adx.adx_neg()  # -DI
+    
+        # Devolver solo las columnas relevantes de las últimas filas
+        resultado = data[['Close', 'ATR', 'ADX', 'DMP', 'DMN']].tail(3)
+        print(resultado)
+        
+        # Opcional: devolver el último valor como dict (útil para lógica posterior)
+        ultimo = data.iloc[-1]
+        return {
+            'fecha': ultimo.name,
+            'close': ultimo['Close'],
+            'ATR': ultimo['ATR'],
+            'ADX': ultimo['ADX'],
+            'DMP': ultimo['DMP'],
+            'DMN': ultimo['DMN']
+        }
+
     
     
     def vender_con_estrategia (self):
@@ -1246,8 +1329,10 @@ if __name__ == '__main__':
 
     
     objEstra =valueMomentumClass("AMZN")
-    send_message("Procesosna ValueMomentum")
+    send_message("Proceso ValueMomentum")
 
+
+    #objEstra.comprar('USB')
     
     print(f"PER de {objEstra.ticker}", objEstra.obtener_per(objEstra.ticker))
 
@@ -1258,6 +1343,8 @@ if __name__ == '__main__':
     
     #tickers=  tickers_financials
     tickers= defense_tickers
+    
+    #test tickers = ["CACI", "QLYS", "ASGN", "NPK"]
     
 
     df_val = objEstra.obtener_composite_value_tickers(tickers, sector='fin')

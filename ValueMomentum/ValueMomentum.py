@@ -10,7 +10,7 @@ FIANNACIAL
 Programa para un estrategia robusta y basica
 OBEJTIVO: tener algo consistente que me anime en otras estrategias mas arriesgadas
 
-verion para Defensa
+verion para Finanzas (comporbar Value)
 ******************************************************************************
 ******************************************************************************
 
@@ -51,7 +51,7 @@ Author: J3Viton
 
 """
 
-DEBUG__ = True  #variable global (global J3_DEBUG__ )
+DEBUG__ = False  #variable global (global J3_DEBUG__ )
 
 
 ################################ IMPORTAMOS MODULOS A UTILIZAR.
@@ -284,6 +284,8 @@ class valueMomentumClass:
         if df.empty:
             print("⚠️ Ninguna acción pasa los filtros absolutos.")
             return None
+               
+        
     
         # 6️⃣ Normalización (z-score inverso)
         #   Convierte a misma escala por COLUMNA, nos dice lo lejos que está de la media. Z=0 valor en la media 
@@ -508,7 +510,7 @@ class valueMomentumClass:
     
             # 3️⃣ Calcular ADX
             adx_indicator = ta.trend.ADXIndicator(high=data["High"], low=data["Low"], close=data["Close"], window=14)
-            data["ADX"] = adx_indicator.adx()
+            data["ADX"] = adx_indicator.adx_neg()
     
             # 4️⃣ Tomar los últimos valores
 
@@ -556,7 +558,7 @@ class valueMomentumClass:
     
             # 3️⃣ Calcular ADX
             adx_indicator = ta.trend.ADXIndicator(high=data["High"], low=data["Low"], close=data["Close"], window=14)
-            data["ADX"] = adx_indicator.adx()
+            data["ADX"] = adx_indicator.adx_pos()
     
             # 4️⃣ Tomar los últimos valores
             sma20 = data["SMA20"].iloc[-1]

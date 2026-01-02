@@ -809,6 +809,7 @@ class valueMomentumClass:
             return False
         return False
     
+
     def analizar_tendencia_UP(self, ticker, periodo="6mo"):
         """
         Descarga los datos históricos de un ticker y calcula los indicadores:
@@ -816,7 +817,7 @@ class valueMomentumClass:
         - SMA20 y SMA50 (medias móviles simples)
         
         Devuelve True si:
-          ADX > 25  y  SMA20 > SMA50   → tendencia Alcista fuerte
+          ADX > 25  y  SMA20 < SMA50   → tendencia bajista fuerte
         """
         
         import yfinance as yf
@@ -837,24 +838,30 @@ class valueMomentumClass:
     
             # 3️⃣ Calcular ADX
             adx_indicator = ta.trend.ADXIndicator(high=data["High"], low=data["Low"], close=data["Close"], window=14)
-            data["ADX"] = adx_indicator.adx_pos()
+            data["ADX"] = adx_indicator.adx()
+            data["ADXpos"] = adx_indicator.adx_pos()
+            data["ADXneg"] = adx_indicator.adx_neg()
     
             # 4️⃣ Tomar los últimos valores
+
             sma20 = data["SMA20"].iloc[-1]
             sma50 = data["SMA50"].iloc[-1]
             adx = data["ADX"].iloc[-1]
+            adx_pos = data["ADXpos"].iloc[-1]
+            adx_neg = data["ADXneg"].iloc[-1]
     
             # 5️⃣ Evaluar condición
-            if ( (adx > 25) and (sma20 > sma50)):  #sube fuerts
+            if ( (adx > 25) and (adx_neg < adx_pos) ):   #and (sma20 < sma50)
                 return True
-    
-            #print(f"{ticker}: ADX(25)={adx:.2f}, SMA20={sma20:.2f}, SMA50={sma50:.2f} → {'✅ True' if condicion else '❌ False'}")
             return False
+            #print(f"{ticker}: ADX(25)={adx:.2f}, SMA20={sma20:.2f}, SMA50={sma50:.2f} → {'✅ True' if condicion else '❌ False'}")
+
     
         except Exception as e:
             print(f"Error al analizar {ticker}: {e}")
             return False
-        return False
+        return False     
+
 
 
 

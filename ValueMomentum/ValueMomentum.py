@@ -659,6 +659,13 @@ class valueMomentumClass:
                 # 2️⃣ Ajustar regresión lineal
                 model = LinearRegression().fit(x, y)
                 beta = model.coef_[0]  # pendiente
+                
+                # Filtro simple: solo tendencias positivas
+                #   Esta formuala del momentum juzaga de manera relativa entres el grupo de valores
+                #   eso puede provocar que invierta en el menos malo del grupo y PIERDA.
+                #   Con este filtro garantizo valor absoluto 'bueno'
+                if beta <= 0:
+                    continue
 
                 resultados.append({"Ticker": t, "Momentum_beta": beta})
 

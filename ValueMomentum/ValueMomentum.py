@@ -10,7 +10,7 @@ FIANNACIAL
 Programa para un estrategia robusta y basica
 OBEJTIVO: tener algo consistente que me anime en otras estrategias mas arriesgadas
 
-verion para Finanzas (comporbar Value)
+verion para  STOCXX   Finanzas SIN ALPACA (comporbar Value)
 ******************************************************************************
 ******************************************************************************
 
@@ -64,7 +64,7 @@ import yfinance as yf
 ################################# ENTORNO
 import sys
 sys.path.insert(0,"C:\\Users\\jjjimenez\\Documents\\quant\\libreria")
-from sp500 import tickers_financials, defense_tickers
+from sp500 import stoxx_600_banks_tickers
 
 
 ####################### LOGGING
@@ -73,7 +73,7 @@ for handler in logging.root.handlers[:]:
     logging.root.removeHandler(handler)
 logging.basicConfig(filename='../log/registro.log', level=logging.INFO ,force=True,
                     format='%(asctime)s:%(levelname)s:%(message)s')
-logging.warning('Paso por ValueMomentum, esto es una migita')
+logging.warning('Paso por ValueMomentum, esto es una migita STOCXX')
 
 #### Variables globales  (refereniarlas con 'global' desde el codigo
 versionVersion = 0.1
@@ -95,7 +95,9 @@ class valueMomentumClass:
     backtesting = False  #variable de la clase, se accede con el nombre
     n_past = 14  # Number of past days we want to use to predict the future.  FILAS
     flag01 =0
-   
+    
+    tickets_comprado= ['UNI.MC','JYSK.CO','ABN.AS']
+    
     def __init__(self, ticker_= "AAPL", Y_supervised_ = 'hull', para1=False, para2=1):
         
         #Variable de INSTANCIA
@@ -153,6 +155,7 @@ class valueMomentumClass:
        # 1️⃣ Descargar datos de Yahoo Finance
        for t in tickers:
            try:
+               #logging.warning(f'{t}')
                info = yf.Ticker(t).get_info()
                data.append({
                    "Ticker": t,
@@ -445,7 +448,9 @@ class valueMomentumClass:
         if (not self.analizar_tendencia_UP(ticker)):
             return False   
         
+        send_message(f"🔴 Stocxx finn BUY: {ticker} .")
         
+        """
         #Llamamos al constructor de la Clase compraVenta con el ID de la cuenta
         import sys
         import importlib
@@ -454,7 +459,7 @@ class valueMomentumClass:
         
 
 
-        alpacaAPI= automatic.tradeAPIClass(para2=automatic.CUENTA_J3_01) 
+        alpacaAPI= automatic.tradeAPIClass(para2=automatic.CUENTA_J3_03) 
         
         cantidad = alpacaAPI.positionExist(ticker)
         
@@ -463,6 +468,8 @@ class valueMomentumClass:
             orderID= alpacaAPI.placeOrder(ticker, 1)
         else:
             print(f"⚠️🔴 {ticker}: Ya estamos comprados .")
+            
+        """    
             
         return "ok"
     
@@ -474,17 +481,20 @@ class valueMomentumClass:
         if (not self.analizar_tendencia_DOWN(ticker)):
             return False           
         
+        send_message(f"⚠️ Stocxx finn SELL: {ticker} .")
+        
+        """
         #Llamamos al constructor de la Clase compraVenta con el ID de la cuenta
         import sys
         import importlib
         sys.path.append("C:\\Users\\jjjimenez\\Documents\\quant\\999_Automatic\\999_Automatic")
         automatic = importlib.import_module("automatic", "C:\\Users\\jjjimenez\\Documents\\quant\\999_Automatic\\999_Automatic")
 
-        alpacaAPI= automatic.tradeAPIClass(para2=automatic.CUENTA_J3_01) 
+        alpacaAPI= automatic.tradeAPIClass(para2=automatic.CUENTA_J3_03) 
         
         #ticker= 'LNC'
         alpacaAPI.placeOrderSell(ticker,1)        
-        
+        """
         
         
         return "ok"    
@@ -621,8 +631,8 @@ class valueMomentumClass:
         sys.path.append("C:\\Users\\jjjimenez\\Documents\\quant\\999_Automatic\\999_Automatic")
         automatic = importlib.import_module("automatic", "C:\\Users\\jjjimenez\\Documents\\quant\\999_Automatic\\999_Automatic")
 
-
-        alpacaAPI= automatic.tradeAPIClass(para2=automatic.CUENTA_J3_01) 
+        """
+        alpacaAPI= automatic.tradeAPIClass(para2=automatic.CUENTA_J3_03) 
         
         # 1️⃣ Obtener las posiciones abiertas desde Alpaca
         posiciones = alpacaAPI.get_positions()
@@ -652,8 +662,8 @@ class valueMomentumClass:
             df_valores[c] = pd.to_numeric(df_valores[c], errors="coerce")
     
         tickers = df_valores["symbol"].unique().tolist()
-    
-
+        """
+        tickers=self.tickets_comprado
     
         # 4️⃣ Analizar cada ticker
         for t in tickers:
@@ -1017,7 +1027,7 @@ if __name__ == '__main__':
 
     
     objEstra =valueMomentumClass("AMZN")
-    send_message("Procesosna ValueMomentum")
+    send_message("Procesosa ValueMomentum STOCXX finn")
 
     
     print(f"PER de {objEstra.ticker}", objEstra.obtener_per(objEstra.ticker))
@@ -1027,7 +1037,7 @@ if __name__ == '__main__':
     #objEstra.backtest(tickers, start="2015-01-01", end="2025-01-01", score_threshold=1.0, atr_mult=2)
     
     
-    tickers=  tickers_financials
+    tickers=  stoxx_600_banks_tickers
     #tickers= defense_tickers
     df_val = objEstra.obtener_composite_value_tickers(tickers, sector='fin')
     
@@ -1084,7 +1094,7 @@ if __name__ == '__main__':
     
 
     print('✅✅ This is it................ 1')
-    logging.warning('Paso por ValueMomentum, esto es una migita FIN ')
+    logging.warning('Paso por STOCXX, esto es una migita FIN ')
     sys.exit(32)
 
     

@@ -96,7 +96,7 @@ class valueMomentumClass:
     n_past = 14  # Number of past days we want to use to predict the future.  FILAS
     flag01 =0
     
-    tickets_comprado= ['UNI.MC','JYSK.CO','ABN.AS']
+    tickets_comprado= ['UNI.MC','JYSK.CO','ABN.AS','BPE.MI']
     
     def __init__(self, ticker_= "AAPL", Y_supervised_ = 'hull', para1=False, para2=1):
         

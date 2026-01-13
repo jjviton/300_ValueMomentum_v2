@@ -49,7 +49,7 @@ Author: J3Viton
 
 """
 
-DEBUG__ = False  #variable global (global J3_DEBUG__ )
+DEBUG__ = True  #variable global (global J3_DEBUG__ )
 
 
 ################################ IMPORTAMOS MODULOS A UTILIZAR.
@@ -309,14 +309,16 @@ class valueMomentumClass:
                 return np.nan
             return np.nan
     
+        
+    
         # ----------------------------
         # Extracción por ticker
         # ----------------------------
         rows = []
         for tkr in tickers:
             try:
-                if tkr=='CACI': 
-                    i=8
+                #if tkr=='CACI': 
+                   # i=8
                     
                 t = yf.Ticker(tkr)
                 bi = get_basic_info(t)
@@ -354,7 +356,7 @@ class valueMomentumClass:
         # ----------------------------
         # Filtro opcional por sector defensa
         # ----------------------------
-        if sector and sector.lower().startswith("def"):
+        if sector and sector.lower().startswith("def"):  #J3
             # Nos quedamos con 'Aerospace & Defense' si aparece; si no, mantenemos todos.
             mask_def = df["Industry"].fillna("").str.contains("Aerospace", case=False) & \
                        df["Industry"].fillna("").str.contains("Defense", case=False)
@@ -374,15 +376,20 @@ class valueMomentumClass:
             print("⚠️ Ninguna acción con datos suficientes (EV/EBITDA y FCF Yield).")
             return None
     
+    
+        
+    
         # ----------------------------
         # Winsorización (5–95%) para reducir outliers
         # ----------------------------
         for col in ["EV/EBITDA", "FCF_Yield", "Forward_PE", "P/B", "Dividend_Yield", "NetDebt_EBITDA"]:
             if col in df.columns:
                 df[col] = winsorize_series(df[col], low=0.05, high=0.95)
+                
+                
     
-            import numpy as np
-            import pandas as pd
+        import numpy as np
+        import pandas as pd
             
         # ----------------------------
         # Z-scores robustos con signos correctos
@@ -467,11 +474,6 @@ class valueMomentumClass:
     
         return df[cols_out]
     
-    
-    
-    
-
-
 
     def obtener_composite_value_tickerskk(self, tickers, sector='fin'):
         """

@@ -483,9 +483,11 @@ class valueMomentumClass:
         alpacaAPI= automatic.tradeAPIClass(para2=automatic.CUENTA_J3_01) 
         
         #ticker= 'LNC'
-        alpacaAPI.placeOrderSell(ticker,1)        
+        alpacaAPI.placeOrderSell(ticker,1) 
+        print(f"Vendemos {ticker}")
+        send_message(f"🔴 Vendemos {ticker}.")
         
-        
+     
         
         return "ok"    
 

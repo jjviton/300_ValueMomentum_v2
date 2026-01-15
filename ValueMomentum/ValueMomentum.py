@@ -49,7 +49,7 @@ Author: J3Viton
 
 """
 
-DEBUG__ = True  #variable global (global J3_DEBUG__ )
+DEBUG__ = False  #variable global (global J3_DEBUG__ )
 
 
 ################################ IMPORTAMOS MODULOS A UTILIZAR.

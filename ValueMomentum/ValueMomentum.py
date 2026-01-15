@@ -747,7 +747,9 @@ class valueMomentumClass:
         print(f"Evaluanado VENTA de {ticker}")
         
         # Compruebo la tendencia  BAJISTA   ADX >25  SMA20>SMA50
-        if (not self.analizar_tendencia_DOWN(ticker)):
+        marca=self.analizar_tendencia_DOWN(ticker)
+        
+        if (not marca):
             return False           
         
         #Llamamos al constructor de la Clase compraVenta con el ID de la cuenta
@@ -759,9 +761,10 @@ class valueMomentumClass:
         alpacaAPI= automatic.tradeAPIClass(para2=automatic.CUENTA_J3_02) 
         
         #ticker= 'LNC'
-        alpacaAPI.placeOrderSell(ticker,1)        
-        
-        
+        alpacaAPI.placeOrderSell(ticker,1)  
+        print(f"VENTA de {ticker}")
+        send_message(f"VENTA de {ticker}")
+              
         
         return "ok"    
 

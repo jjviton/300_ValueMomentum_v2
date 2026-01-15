@@ -51,7 +51,7 @@ Author: J3Viton
 
 """
 
-DEBUG__ = False  #variable global (global J3_DEBUG__ )
+DEBUG__ = True  #variable global (global J3_DEBUG__ )
 
 
 ################################ IMPORTAMOS MODULOS A UTILIZAR.
@@ -924,7 +924,7 @@ class valueMomentumClass:
            plt.ylabel("Momentum (Momentum_z)")
            plt.title("Mapa Value vs Momentum (color = Score total)")
            plt.colorbar(sc, label="Score total")
-           plt.grid(True, linestyle="--", alpha=0.6)
+           plt.grid(True, linestyle="--", alpha=0.5)
            plt.show()   
     
     def graficar_burbujas(self, df_final):
@@ -981,7 +981,7 @@ class valueMomentumClass:
         plt.figure(figsize=(10,6))
         plt.barh(top_df["Ticker"], top_df["Score_total"], color="dodgerblue", alpha=0.8)
         # Línea vertical roja en x=1
-        plt.axvline(x=0.6, color="green", linestyle="--", linewidth=2, label="Umbral Score=1")
+        plt.axvline(x=0.5, color="green", linestyle="--", linewidth=2, label="Umbral Score=1")
         
         plt.xlabel("Score Total (Value + Momentum)")
         plt.title(f"Top {top_n} acciones según Score_total")

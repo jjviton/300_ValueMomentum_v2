@@ -774,114 +774,7 @@ class valueMomentumClass:
         return df_result
     
         
-    def backtest(self, tickers, start="2015-01-01", end="2025-01-01", score_threshold=1.0, atr_mult=2):
-        """
-        Backtest simplificado de la estrategia Value + Momentum + Stop ATR.
-        Simula compras cuando el Score_total es alto y salidas cuando salta el stop dinámico.
-        """
-    
-        import pandas as pd
-        import numpy as np
-        import yfinance as yf
-        from datetime import timedelta
-    
-        results = []
-        equity_curve = pd.Series(dtype=float)
-    
-        for t in tickers:
-            try:
-                # 1️⃣ Descargar precios
-                data = yf.download(t, start=start, end=end, progress=False,auto_adjust=True)
-                if data.empty:
-                    continue
-    
-                # 2️⃣ Calcular indicadores técnicos
-                data["H-L"] = data["High"] - data["Low"]
-                data["H-PC"] = abs(data["High"] - data["Close"].shift(1))
-                data["L-PC"] = abs(data["Low"] - data["Close"].shift(1))
-                data["TR"] = data[["H-L", "H-PC", "L-PC"]].max(axis=1)
-                data["ATR"] = data["TR"].rolling(14).mean()
-    
-                data["max20"] = data["High"].rolling(20).max()
-                data["stop_atr"] = data["max20"] - atr_mult * data["ATR"]
-    
-                # 3️⃣ Simular señales
-                # Entrada: Score_total alto (aquí simulamos un score aleatorio por ejemplo)
-                np.random.seed(0)
-                data["Score_total"] = np.random.normal(0.8, 0.4, len(data))  # TODO: reemplazar con tu score real
-                data["signal"] = 0
-                data.loc[data["Score_total"] > score_threshold, "signal"] = 1
-                
-                ###########
-                df_val = self.obtener_composite_value_tickers(tickers, sector='fin')
-                
-                #df_mom = objEstra.obtener_momentum_log(tickers, period=252)  # semestral
-                df_mom =self.calcular_momentum_regresion_tickers(tickers)
-                
-                 # Fusionar ambos DataFrames
-                df_final = pd.merge(df_val, df_mom, on="Ticker", how="inner")
-                
-                # Calcular score total combinado (igual peso)
-                df_final["Score_total"] = 0.5 * df_final["Composite_z"] + 0.5 * df_final["Momentum_z"]
-                
-                # Ranking general
-                df_final["Ranking_Total"] = df_final["Score_total"].rank(ascending=False)
-                df_final.sort_values("Score_total", ascending=False, inplace=True)
-                df_final.reset_index(drop=True, inplace=True)
-                
-                data["Score_total"] = df_final["Ranking_Total"]
-                data["signal"] = 0
-                data.loc[data["Score_total"] > score_threshold, "signal"] = 1
-                
-                #############
-                
-                
-                
-    
-                # Salida: Stop ATR
-                data.loc[data["Close"] < data["stop_atr"], "signal"] = 0
-    
-                # 4️⃣ Determinar posición
-                data["position"] = data["signal"].shift(1).ffill()
-    
-                # 5️⃣ Calcular rendimiento diario
-                data["returns"] = data["Close"].pct_change()
-                data["strategy"] = data["position"] * data["returns"]
-    
-                # 6️⃣ Acumular resultado
-                cumulative = (1 + data["strategy"].fillna(0)).cumprod()
-                results.append({
-                    "Ticker": t,
-                    "Total_Return": cumulative.iloc[-1] - 1,
-                    "CAGR": ((1 + cumulative.iloc[-1]) ** (252 / len(data)) - 1),
-                    "Sharpe": np.sqrt(252) * data["strategy"].mean() / data["strategy"].std(),
-                    "Max_Drawdown": (cumulative / cumulative.cummax() - 1).min()
-                })
-    
-                equity_curve = equity_curve.add(cumulative, fill_value=0)
-    
-            except Exception as e:
-                print(f"⚠️ Error en {t}: {e}")
-    
-        # 7️⃣ Consolidar resultados
-        df_results = pd.DataFrame(results)
-        df_results.sort_values("CAGR", ascending=False, inplace=True)
-        equity_curve /= len(results)  # promedio
-    
-        # 8️⃣ Mostrar resultados
-        import matplotlib.pyplot as plt
-        plt.figure(figsize=(10, 5))
-        plt.plot(equity_curve.index, equity_curve.values, label="Estrategia")
-        plt.title("Curva de capital promedio - Value + Momentum + Stop ATR")
-        plt.legend()
-        plt.grid(True)
-        plt.show()
-    
-        print("Resumen del Backtest:\n", df_results.round(3))
-        print("\nRentabilidad media:", df_results["CAGR"].mean())
-        print("Sharpe promedio:", df_results["Sharpe"].mean())
-    
-        return df_results
+
     
     
     
@@ -1104,6 +997,6 @@ else:
 
 
 
-
-
+#######################################################################
+#######################################################################
 

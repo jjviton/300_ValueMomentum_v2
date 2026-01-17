@@ -467,7 +467,7 @@ class valueMomentumClass:
         if (cantidad == 0):
             orderID= alpacaAPI.placeOrder(ticker, 1)
         else:
-            print(f"⚠️🔴 {ticker}: Ya estamos comprados .")
+            print(f"✅ {ticker}: Ya estamos comprados .")
             
         """    
             

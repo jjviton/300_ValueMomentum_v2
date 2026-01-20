@@ -940,7 +940,7 @@ class valueMomentumClass:
             print("❌ Error: faltan columnas necesarias en df_final.")
             return
 
-        plt.figure(figsize=(9,6))
+        fig=plt.figure(figsize=(9,6))
         sc = plt.scatter(
             df_final["Composite_z"],
             df_final["Momentum_z"],
@@ -961,6 +961,8 @@ class valueMomentumClass:
         plt.colorbar(sc, label="Score total")
         plt.grid(alpha=0.3)
         plt.show()
+        fig.savefig("burbujas_finance.png", dpi=150, bbox_inches="tight", pad_inches=0)
+        
 
     def graficar_ranking(self, df_final):
         
@@ -978,7 +980,7 @@ class valueMomentumClass:
         #if grafico:
 
         top_df = df_sorted.head(top_n)
-        plt.figure(figsize=(10,6))
+        fig= plt.figure(figsize=(10,6))
         plt.barh(top_df["Ticker"], top_df["Score_total"], color="dodgerblue", alpha=0.8)
         # Línea vertical roja en x=1
         plt.axvline(x=0.5, color="green", linestyle="--", linewidth=2, label="Umbral Score=1")
@@ -987,7 +989,8 @@ class valueMomentumClass:
         plt.title(f"Top {top_n} acciones según Score_total")
         plt.gca().invert_yaxis()  # Mostrar el top arriba
         plt.grid(axis="x", linestyle="--", alpha=0.4)
-        plt.show()       
+        plt.show()    
+        fig.savefig("score_finance.png", dpi=150, bbox_inches="tight", pad_inches=0.1)
              
  
     
@@ -1062,6 +1065,10 @@ if __name__ == '__main__':
         #objEstra.graficar_dispersion(df_final)
         objEstra.graficar_burbujas(df_final)
         objEstra.graficar_ranking(df_final)
+        
+        
+    enviar_png_telegram("C://Users//jjjimenez//Documents//quant//300_ValueMomentum//ValueMomentum//burbujas_finance.png", caption="STOCXX scatter plot")
+    enviar_png_telegram("C://Users//jjjimenez//Documents//quant//300_ValueMomentum//ValueMomentum//score_finance.png", caption="STOCXX Final score plot")
 
     #######################################################################
     #  Decision de compra
@@ -1089,7 +1096,7 @@ if __name__ == '__main__':
         import keyboard
         print("Pulsa una tecla para finalizar ")
 
-        tecla = keyboard.read_key()
+        #tecla = keyboard.read_key()
     
     
 

@@ -51,7 +51,7 @@ Author: J3Viton
 
 """
 
-DEBUG__ = True  #variable global (global J3_DEBUG__ )
+DEBUG__ = False  #variable global (global J3_DEBUG__ )
 
 
 ################################ IMPORTAMOS MODULOS A UTILIZAR.
@@ -1030,7 +1030,7 @@ if __name__ == '__main__':
 
     
     objEstra =valueMomentumClass("AMZN")
-    send_message("Procesosa ValueMomentum STOCXX finn")
+    send_message(" ****************  Proceso ValueMomentum STOCXX finn")
 
     
     print(f"PER de {objEstra.ticker}", objEstra.obtener_per(objEstra.ticker))

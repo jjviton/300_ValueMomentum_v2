@@ -1061,14 +1061,15 @@ if __name__ == '__main__':
     #graficamos    
     
     if DEBUG__:
+        pass
             
         #objEstra.graficar_dispersion(df_final)
-        objEstra.graficar_burbujas(df_final)
-        objEstra.graficar_ranking(df_final)
+    objEstra.graficar_burbujas(df_final)
+    objEstra.graficar_ranking(df_final)
         
-        
-    enviar_png_telegram("C://Users//jjjimenez//Documents//quant//300_ValueMomentum//ValueMomentum//burbujas_finance.png", caption="STOCXX scatter plot")
-    enviar_png_telegram("C://Users//jjjimenez//Documents//quant//300_ValueMomentum//ValueMomentum//score_finance.png", caption="STOCXX Final score plot")
+    
+    enviar_png_telegram("C://Users//jjjimenez//Documents//quant//zPRODUCCION//300_ValueMomentum//burbujas_finance.png", caption="STOCXX scatter plot")
+    enviar_png_telegram("C://Users//jjjimenez//Documents//quant//zPRODUCCION//300_ValueMomentum//ValueMomentum//score_finance.png", caption="STOCXX Final score plot")
 
     #######################################################################
     #  Decision de compra

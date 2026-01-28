@@ -717,6 +717,7 @@ class valueMomentumClass:
             numAcciones = int( self.moneyManagement (ticker, resultado['ATR'],100000, alpacaAPI.getCash()))   #100000 es el equity de la cuenta
             
             orderID= alpacaAPI.placeOrder(ticker, 1)
+            send_message(f"⚠️ Stocxx finn BUY: {ticker} .")
             
         else:
             print(f"⚠️🔴 {ticker}: Ya estamos comprados .")
@@ -1264,7 +1265,7 @@ class valueMomentumClass:
             print("❌ Error: faltan columnas necesarias en df_final.")
             return
 
-        plt.figure(figsize=(9,6))
+        fig=plt.figure(figsize=(9,6))
         sc = plt.scatter(
             df_final["Composite_z"],
             df_final["Momentum_z"],
@@ -1285,6 +1286,11 @@ class valueMomentumClass:
         plt.colorbar(sc, label="Score total")
         plt.grid(alpha=0.3)
         plt.show()
+        
+        fig.savefig("burbujas_finance.png", dpi=150, bbox_inches="tight", pad_inches=0)        
+        enviar_png_telegram("C://Users//jjjimenez//Documents//quant//zPRODUCCION//300_ValueMomentum//burbujas_finance.png", caption="DEFENSA scatter plot")
+
+        
 
     def graficar_ranking(self, df_final):
         
@@ -1352,7 +1358,7 @@ if __name__ == '__main__':
 
     
     objEstra =valueMomentumClass("AMZN")
-    send_message("Proceso ValueMomentum")
+    send_message("Proceso ValueMomentum DEFENSE 🚀 ")
 
 
     #objEstra.comprar('USB')
@@ -1394,6 +1400,10 @@ if __name__ == '__main__':
         #objEstra.graficar_dispersion(df_final)
         objEstra.graficar_burbujas(df_final)
         objEstra.graficar_ranking(df_final)
+
+
+    objEstra.graficar_burbujas(df_final)
+    objEstra.graficar_ranking(df_final)
 
     #######################################################################
     #  Decision de compra

@@ -1285,11 +1285,11 @@ class valueMomentumClass:
         plt.title("Relación Value vs Momentum (tamaño y color = Score total)")
         plt.colorbar(sc, label="Score total")
         plt.grid(alpha=0.3)
-        plt.show()
+        #plt.show()
         
         fig.savefig("burbujas_finance.png", dpi=150, bbox_inches="tight", pad_inches=0)        
         enviar_png_telegram("C://Users//jjjimenez//Documents//quant//zPRODUCCION//300_ValueMomentum//burbujas_finance.png", caption="DEFENSA scatter plot")
-
+        plt.close(fig)
         
 
     def graficar_ranking(self, df_final):
@@ -1317,7 +1317,8 @@ class valueMomentumClass:
         plt.title(f"Top {top_n} acciones según Score_total")
         plt.gca().invert_yaxis()  # Mostrar el top arriba
         plt.grid(axis="x", linestyle="--", alpha=0.4)
-        plt.show()       
+        #plt.show()  
+        plt.close(fig)
              
  
     

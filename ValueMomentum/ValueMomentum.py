@@ -965,6 +965,9 @@ class valueMomentumClass:
         #plt.show(block=False)
         plt.close(fig)
         
+        enviar_png_telegram("burbujas_finance.png", caption="STOCXX scatter plot")
+
+        
 
     def graficar_ranking(self, df_final):
         
@@ -994,7 +997,10 @@ class valueMomentumClass:
             
         fig.savefig("score_finance.png", dpi=150, bbox_inches="tight", pad_inches=0.1)
         #plt.show(block=False)
+        
         plt.close(fig)     
+        
+        enviar_png_telegram("score_finance.png", caption="STOCXX Final score plot")
  
     
 #################################################### Clase FIN
@@ -1016,7 +1022,6 @@ if __name__ == '__main__':
     b -- 
     c -- 
 
-    
     """   
 
     print ('version(J): ',versionVersion) 
@@ -1071,8 +1076,8 @@ if __name__ == '__main__':
     objEstra.graficar_ranking(df_final)
         
     
-    enviar_png_telegram("C://Users//jjjimenez//Documents//quant//zPRODUCCION//300_ValueMomentum//burbujas_finance.png", caption="STOCXX scatter plot")
-    enviar_png_telegram("C://Users//jjjimenez//Documents//quant//zPRODUCCION//300_ValueMomentum//score_finance.png", caption="STOCXX Final score plot")
+    #enviar_png_telegram("C://Users//jjjimenez//Documents//quant//zPRODUCCION//300_ValueMomentum//burbujas_finance.png", caption="STOCXX scatter plot")
+    #enviar_png_telegram("C://Users//jjjimenez//Documents//quant//zPRODUCCION//300_ValueMomentum//score_finance.png", caption="STOCXX Final score plot")
 
     #######################################################################
     #  Decision de compra

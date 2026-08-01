@@ -1,0 +1,124 @@
+{
+  "_generado": "2026-08-01T19:17:06.437800",
+  "_nota": "Generado por validar_tickers.py. 'validados' son los tickers que yfinance documenta completos y que la estrategia puede evaluar de verdad. Reejecuta el validador cada pocas semanas: la cobertura de Yahoo cambia con el tiempo.",
+  "universos": {
+    "stoxx_600_banks": {
+      "validados": [
+        "HSBA.L",
+        "BARC.L",
+        "LLOY.L",
+        "NWG.L",
+        "STAN.L",
+        "SAN.MC",
+        "BBVA.MC",
+        "CABK.MC",
+        "SAB.MC",
+        "BKT.MC",
+        "UNI.MC",
+        "ISP.MI",
+        "UCG.MI",
+        "BAMI.MI",
+        "BPE.MI",
+        "BMPS.MI",
+        "FBK.MI",
+        "ACA.PA",
+        "GLE.PA",
+        "DBK.DE",
+        "CBK.DE",
+        "INGA.AS",
+        "ABN.AS",
+        "KBC.BR",
+        "EBS.VI",
+        "BG.VI",
+        "UBSG.SW",
+        "BAER.SW",
+        "CMBN.SW",
+        "BCVN.SW",
+        "BCP.LS",
+        "A5G.IR",
+        "BIRG.IR",
+        "DANSKE.CO",
+        "JYSK.CO",
+        "SEB-A.ST",
+        "SWED-A.ST",
+        "SHB-A.ST",
+        "NDA-SE.ST",
+        "DNB.OL",
+        "PKO.WA",
+        "PEO.WA",
+        "MBK.WA"
+      ],
+      "quality_incompleto": [],
+      "sin_fundamentales": [
+        "MB.MI",
+        "BNP.PA",
+        "RBI.VI"
+      ],
+      "no_existen": [
+        "BPSO.MI",
+        "SYDB.CO",
+        "RINGB.CO",
+        "SPL.WA"
+      ],
+      "sugerencias": {}
+    },
+    "defensa_europa": {
+      "validados": [
+        "BA.L",
+        "RR.L",
+        "QQ.L",
+        "BAB.L",
+        "CHG.L",
+        "AVON.L",
+        "SNR.L",
+        "HO.PA",
+        "AIR.PA",
+        "SAF.PA",
+        "AM.PA",
+        "RHM.DE",
+        "HAG.DE",
+        "R3NK.DE",
+        "MTX.DE",
+        "LDO.MI",
+        "AVIO.MI",
+        "SAAB-B.ST",
+        "KOG.OL",
+        "IDR.MC"
+      ],
+      "quality_incompleto": [],
+      "sin_fundamentales": [
+        "EXE.PA"
+      ],
+      "no_existen": [
+        "FNC.MI"
+      ],
+      "sugerencias": {}
+    },
+    "energia_europa": {
+      "validados": [
+        "SHEL.L",
+        "BP.L",
+        "TTE.PA",
+        "ENI.MI",
+        "REP.MC",
+        "EQNR.OL",
+        "OMV.VI",
+        "GALP.LS",
+        "PKN.WA",
+        "AKRBP.OL",
+        "VAR.OL",
+        "CNE.L"
+      ],
+      "quality_incompleto": [],
+      "sin_fundamentales": [
+        "DNO.OL",
+        "HBR.L",
+        "ENOG.L",
+        "ITH.L",
+        "TLW.L"
+      ],
+      "no_existen": [],
+      "sugerencias": {}
+    }
+  }
+}
